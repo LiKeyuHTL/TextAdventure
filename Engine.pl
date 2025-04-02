@@ -113,7 +113,7 @@ negotiate :-
 % Movement commands
 n :- move(north).
 s :- move(south).
-o :- move(east).
+e :- move(east).
 w :- move(west).
 
 % **HELP FUNCTION**
@@ -121,7 +121,7 @@ help :-
     write('Available commands:'), nl,
     write('  start.         - Begin your adventure'), nl,
     write('  look.          - Look around your current location'), nl,
-    write('  n. s. o. w.    - Move (north, south, east, west)'), nl,
+    write('  n. s. e. w.    - Move (north, south, east, west)'), nl,
     write('  take(Object).  - Pick up an object'), nl,
     write('  drop(Object).  - Drop an object'), nl,
     write('  inventory.     - Check your inventory'), nl,
