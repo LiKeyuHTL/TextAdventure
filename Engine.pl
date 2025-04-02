@@ -111,10 +111,10 @@ negotiate :-
     write('The pirate considers your offer... "Alright, I might help you, if the price is right."'), nl.
 
 % Movement commands
-n :- move(north).
+w :- move(north).
 s :- move(south).
-e :- move(east).
-w :- move(west).
+d :- move(east).
+a :- move(west).
 
 % **HELP FUNCTION**
 help :-
