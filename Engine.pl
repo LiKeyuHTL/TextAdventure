@@ -1,4 +1,4 @@
-:- dynamic(player/4).  % Added inventory as the fourth parameter
+:- dynamic(player/4).
 :- dynamic(object_at/2).
 :- dynamic(npc_at/2).
 
@@ -8,11 +8,16 @@ player('Hero', 'Crash Site', 100, []).
 % Object locations
 object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
+object_at('Energy Cell', 'Ancient Workshop').
+object_at('Plasma Cutter', 'Skyship Dock').
 
 % NPC locations
 npc_at('Ancient Research Construct', 'Ruined Tower').
 npc_at('Enraged Dragon', 'Sky Temple').
 npc_at('Lost Sky Pirate', 'Floating Docks').
+npc_at('Mechanic', 'Ancient Workshop').
+npc_at('Security Drone', 'Skyship Dock').
+npc_at('Mysterious Merchant', 'Floating Docks').
 
 % Locations and paths
 direction('Crash Site', east, 'Ruined Tower').
@@ -23,6 +28,12 @@ direction('Sky Temple', south, 'Ruined Tower').
 
 direction('Ruined Tower', east, 'Floating Docks').
 direction('Floating Docks', west, 'Ruined Tower').
+
+direction('Floating Docks', south, 'Skyship Dock').
+direction('Skyship Dock', north, 'Floating Docks').
+
+direction('Ruined Tower', west, 'Ancient Workshop').
+direction('Ancient Workshop', east, 'Ruined Tower').
 
 % Move the player
 move(Direction) :-
@@ -55,7 +66,7 @@ list_paths(Location) :-
     findall(Direction, direction(Location, Direction, _), Directions),
     write('Paths lead: '), write(Directions), nl.
 
-% **Pick up objects (Add to inventory)**
+% Pick up objects (Add to inventory)
 take(Object) :-
     player(Name, Location, Health, Inventory),
     object_at(Object, Location),
@@ -65,17 +76,17 @@ take(Object) :-
     asserta(player(Name, Location, Health, NewInventory)),
     write('You picked up: '), write(Object), nl.
 
-% **Drop objects (Remove from inventory)**
+% Drop objects (Remove from inventory)
 drop(Object) :-
     player(Name, Location, Health, Inventory),
     member(Object, Inventory),
     select(Object, Inventory, NewInventory),
-    asserta(object_at(Object, Location)),  % Object returns to the world
+    asserta(object_at(Object, Location)),
     retract(player(Name, Location, Health, Inventory)),
     asserta(player(Name, Location, Health, NewInventory)),
     write('You dropped: '), write(Object), nl.
 
-% **Check Inventory**
+% Check Inventory
 inventory :-
     player(_, _, _, Inventory),
     (Inventory = [] -> write('Your inventory is empty.'), nl ;
@@ -87,6 +98,7 @@ talk(NPC) :-
     npc_at(NPC, Location),
     interact(NPC).
 
+% Unique NPC dialogues
 interact('Ancient Research Construct') :-
     write('The construct scans you. "Unauthorized access detected. Leave or be eliminated."'), nl.
 
@@ -96,43 +108,107 @@ interact('Enraged Dragon') :-
 interact('Lost Sky Pirate') :-
     write('The pirate smirks. "Looking for help? It will cost you."'), nl.
 
-% **Player abilities**
+interact('Mechanic') :-
+    write('The mechanic wipes oil from their hands. "Need something fixed? You better have parts."'), nl.
+
+interact('Security Drone') :-
+    write('The drone hovers. "INTRUDER ALERT! Leave immediately!"'), nl.
+
+interact('Mysterious Merchant') :-
+    write('The merchant grins. "I have rare goods. But they don’t come cheap."'), nl.
+
+% Player abilities
 repair :-
-    write('You attempt to repair the ancient machinery...'), nl,
-    write('Some gears shift, but you need more parts.'), nl.
+    player(_, _, _, Inventory),
+    member('Broken Gear', Inventory),
+    member('Ancient Core', Inventory),
+    write('You assemble the broken parts... The ancient machine hums to life!'), nl.
 
-analyze :-
-    write('You analyze the surroundings...'), nl,
-    write('Strange energy pulses through the ruins. This technology is ancient but functional.'), nl.
+trade :-
+    player(_, Location, _, Inventory),
+    npc_at('Mysterious Merchant', Location),
+    member('Energy Cell', Inventory),
+    retract(player(_, Location, _, Inventory)),
+    select('Energy Cell', Inventory, NewInventory),
+    asserta(player(_, Location, _, ['Plasma Cutter' | NewInventory])),
+    write('You trade the Energy Cell for a Plasma Cutter!'), nl.
 
-negotiate :-
+attack :-
+    player(_, Location, _, Inventory),
+    npc_at('Security Drone', Location),
+    member('Plasma Cutter', Inventory),
+    retract(npc_at('Security Drone', Location)),
+    write('You destroy the drone with the Plasma Cutter! The path is clear.'), nl.
+
+sneak :-
     player(_, Location, _, _),
-    npc_at('Lost Sky Pirate', Location),
-    write('The pirate considers your offer... "Alright, I might help you, if the price is right."'), nl.
+    npc_at('Security Drone', Location),
+    write('You carefully sneak past the drone, avoiding its sensors.'), nl.
 
 % Movement commands
 n :- move(north).
 s :- move(south).
-e :- move(east).
+o :- move(east).
 w :- move(west).
 
-% **HELP FUNCTION**
+% HELP FUNCTION
 help :-
     write('Available commands:'), nl,
     write('  start.         - Begin your adventure'), nl,
     write('  look.          - Look around your current location'), nl,
-    write('  n. s. e. w.    - Move (north, south, east, west)'), nl,
+    write('  n. s. o. w.    - Move (north, south, east, west)'), nl,
     write('  take(Object).  - Pick up an object'), nl,
     write('  drop(Object).  - Drop an object'), nl,
     write('  inventory.     - Check your inventory'), nl,
     write('  talk(NPC).     - Talk to an NPC'), nl,
     write('  repair.        - Attempt to fix ancient machinery'), nl,
-    write('  analyze.       - Analyze your surroundings'), nl,
-    write('  negotiate.     - Try to negotiate with the Sky Pirate'), nl,
+    write('  trade.         - Trade with the Mysterious Merchant'), nl,
+    write('  attack.        - Attack the Security Drone (requires Plasma Cutter)'), nl,
+    write('  sneak.         - Try to sneak past an enemy'), nl,
     write('  help.          - Show this list of commands'), nl.
 
-% **Start the game**
+% Start the game
 start :-
     write('Welcome to The Machines of the Sky!'), nl,
     help,  % Show help menu at the start
     look.
+
+
+% Enhanced Repair Function
+repair :-
+    player(_, Location, _, Inventory),
+    (
+        % Fixing the Ancient Machine
+        (member('Broken Gear', Inventory), member('Ancient Core', Inventory)) ->
+        (
+            write('You assemble the broken parts... The ancient machine hums to life!'), nl,
+            write('A hidden passage is revealed!'), nl,
+            retract(object_at('Broken Gear', Location)),
+            retract(object_at('Ancient Core', Location)),
+            asserta(direction(Location, north, 'Secret Chamber'))
+        );
+
+        % Upgrading the Plasma Cutter
+        (member('Plasma Cutter', Inventory), member('Energy Cell', Inventory)) ->
+        (
+            write('You insert the Energy Cell into the Plasma Cutter... It glows with new power!'), nl,
+            write('Your attacks are now stronger!'), nl,
+            retract(object_at('Energy Cell', Location)),
+            asserta(object_at('Plasma Cutter+', Location))
+        );
+
+        % Repairing the Skyship
+        (member('Skyship Engine', Inventory), member('Ancient Core', Inventory), member('Energy Cell', Inventory)) ->
+        (
+            write('You install the Skyship Engine, connecting it with the Ancient Core...'), nl,
+            write('The ship roars to life! You have a way home!'), nl,
+            write('Congratulations! You can now escape!'), nl,
+            retract(object_at('Skyship Engine', Location)),
+            retract(object_at('Ancient Core', Location)),
+            retract(object_at('Energy Cell', Location)),
+            asserta(object_at('Repaired Skyship', 'Skyship Dock'))
+        );
+
+        % No valid repair combination
+        write('You don’t have the right parts to repair anything.'), nl
+    ).
