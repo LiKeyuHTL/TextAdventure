@@ -148,8 +148,8 @@ sneak :-
 % Movement commands
 w :- move(north).
 s :- move(south).
-e :- move(east).
-w :- move(west).
+d :- move(east).
+a :- move(west).
 
 % HELP FUNCTION
 help :-
