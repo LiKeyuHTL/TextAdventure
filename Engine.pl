@@ -155,6 +155,59 @@ sneak :-
     npc_at('Security Drone', Location),
     write('You carefully sneak past the drone, avoiding its sensors.'), nl.
 
+% Player skill: analyze
+analyze :-
+    player(_, Location, _, _),
+    (   object_at(Object, Location)
+    ->  write('You analyze the area and spot: '), write(Object), nl,
+        write('It appears to be ancient technology. Maybe it can be repaired or used.'), nl
+    ;   npc_at(NPC, Location)
+    ->  write('You analyze '), write(NPC), write('. Weaknesses or functions detected.'), nl
+    ;   write('There is nothing unusual to analyze here.'), nl
+    ).
+
+% Player skill: negotiate (with Sky Pirate)
+negotiate :-
+    player(_, Location, _, _),
+    npc_at('Lost Sky Pirate', Location),
+    write('You negotiate with the Sky Pirate. He offers you a safe route for a price.'), nl.
+negotiate :-
+    write('There is no one here to negotiate with.'), nl.
+
+% Ancient Research Construct skills
+scan :-
+    player(_, Location, _, _),
+    npc_at('Ancient Research Construct', Location),
+    write('The construct scans you. Threat level: moderate. It watches your every move.'), nl.
+
+lockdown :-
+    player(_, Location, _, _),
+    npc_at('Ancient Research Construct', Location),
+    write('The construct activates a lockdown! Exits are sealed.'), nl.
+
+% Enraged Dragon skills
+breathe_fire :-
+    player(Name, Location, Health, Inventory),
+    npc_at('Enraged Dragon', Location),
+    NewHealth is Health - 40,
+    retract(player(Name, Location, Health, Inventory)),
+    asserta(player(Name, Location, NewHealth, Inventory)),
+    write('The dragon breathes fire! You are burned and lose 40 health.'), nl.
+
+% Lost Sky Pirate skills
+quickshot :-
+    player(Name, Location, Health, Inventory),
+    npc_at('Lost Sky Pirate', Location),
+    NewHealth is Health - 20,
+    retract(player(Name, Location, Health, Inventory)),
+    asserta(player(Name, Location, NewHealth, Inventory)),
+    write('The Sky Pirate fires a quick shot! You lose 20 health.'), nl.
+
+navigate :-
+    player(_, Location, _, _),
+    npc_at('Lost Sky Pirate', Location),
+    write('The Sky Pirate shows you a hidden path through the ruins.'), nl.
+
 % Movement commands
 w :- move(north).
 s :- move(south).
@@ -175,8 +228,13 @@ help :-
     write('  trade.         - Trade with the Mysterious Merchant'), nl,
     write('  attack.        - Attack the Security Drone (requires Plasma Cutter)'), nl,
     write('  sneak.         - Try to sneak past an enemy'), nl,
-    write('  unlock_skyforge. - Unlock the Skyforge (requires Skyforge Key)'), nl,
-    write('  craft_weapon.  - Craft a weapon at the Skyforge'), nl,
+    write('  analyze.       - Analyze technology or NPCs in the area'), nl,
+    write('  negotiate.     - Negotiate with the Sky Pirate'), nl,
+    write('  scan.          - (NPC) Construct scans you'), nl,
+    write('  lockdown.      - (NPC) Construct locks down the area'), nl,
+    write('  breathe_fire.  - (NPC) Dragon breathes fire'), nl,
+    write('  quickshot.     - (NPC) Pirate fires a quick shot'), nl,
+    write('  navigate.      - (NPC) Pirate finds a safe path'), nl,
     write('  help.          - Show this list of commands'), nl.
 
 % Start the game
