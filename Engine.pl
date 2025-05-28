@@ -1,9 +1,14 @@
+% filepath: c:\HTL\POSE_Theorie\TextAdventure\Engine.pl
 :- dynamic(player/4).
 :- dynamic(object_at/2).
 :- dynamic(npc_at/2).
 
-% Player status (Name, Location, Health, Inventory)
-player('Hero', 'Crash Site', 100, []).
+% Show welcome and help at load
+:- initialization(main).
+main :-
+    write('Welcome to The Machines of the Sky!'), nl,
+    write('Type start. to begin your adventure.'), nl,
+    help.
 
 % Object locations
 object_at('Broken Gear', 'Crash Site').
@@ -26,19 +31,14 @@ npc_at('Skyforge Keeper', 'Skyforge').
 % Locations and paths
 direction('Crash Site', east, 'Ruined Tower').
 direction('Ruined Tower', west, 'Crash Site').
-
 direction('Ruined Tower', north, 'Sky Temple').
 direction('Sky Temple', south, 'Ruined Tower').
-
 direction('Ruined Tower', east, 'Floating Docks').
 direction('Floating Docks', west, 'Ruined Tower').
-
 direction('Floating Docks', south, 'Skyship Dock').
 direction('Skyship Dock', north, 'Floating Docks').
-
 direction('Ruined Tower', west, 'Ancient Workshop').
 direction('Ancient Workshop', east, 'Ruined Tower').
-
 direction('Sky Temple', east, 'Skyforge').
 direction('Skyforge', west, 'Sky Temple').
 
@@ -237,12 +237,18 @@ help :-
     write('  navigate.      - (NPC) Pirate finds a safe path'), nl,
     write('  help.          - Show this list of commands'), nl.
 
-% Start the game
+% Begin the adventure, ask for name, intro, etc.
 start :-
-    write('Welcome to The Machines of the Sky!'), nl,
-    help,  % Show help menu at the start
+    write('...'), nl,
+    write('You wake up to the sound of crackling wires and distant thunder.'), nl,
+    write('Your head aches. You remember falling...'), nl,
+    write('But who are you?'), nl,
+    write('What is your name? '),
+    read(PlayerName),
+    retractall(player(_,_,_,_)),
+    asserta(player(PlayerName, 'Crash Site', 100, [])),
+    nl, write('Welcome, '), write(PlayerName), write('.'), nl,
     look.
-
 
 % Enhanced Repair Function
 repair :-
