@@ -10,6 +10,9 @@ object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
 object_at('Energy Cell', 'Ancient Workshop').
 object_at('Plasma Cutter', 'Skyship Dock').
+object_at('Skyforge Key', 'Ancient Workshop').
+object_at('Rare Alloy', 'Floating Docks').
+object_at('Dragon Scale', 'Sky Temple').
 
 % NPC locations
 npc_at('Ancient Research Construct', 'Ruined Tower').
@@ -18,6 +21,7 @@ npc_at('Lost Sky Pirate', 'Floating Docks').
 npc_at('Mechanic', 'Ancient Workshop').
 npc_at('Security Drone', 'Skyship Dock').
 npc_at('Mysterious Merchant', 'Floating Docks').
+npc_at('Skyforge Keeper', 'Skyforge').
 
 % Locations and paths
 direction('Crash Site', east, 'Ruined Tower').
@@ -34,6 +38,9 @@ direction('Skyship Dock', north, 'Floating Docks').
 
 direction('Ruined Tower', west, 'Ancient Workshop').
 direction('Ancient Workshop', east, 'Ruined Tower').
+
+direction('Sky Temple', east, 'Skyforge').
+direction('Skyforge', west, 'Sky Temple').
 
 % Move the player
 move(Direction) :-
@@ -117,6 +124,9 @@ interact('Security Drone') :-
 interact('Mysterious Merchant') :-
     write('The merchant grins. "I have rare goods. But they don’t come cheap."'), nl.
 
+interact('Skyforge Keeper') :-
+    write('The Skyforge Keeper speaks: "Bring me the Rare Alloy and Dragon Scale, and I will craft a weapon of legend."'), nl.
+
 % Player abilities
 repair :-
     player(_, _, _, Inventory),
@@ -165,6 +175,8 @@ help :-
     write('  trade.         - Trade with the Mysterious Merchant'), nl,
     write('  attack.        - Attack the Security Drone (requires Plasma Cutter)'), nl,
     write('  sneak.         - Try to sneak past an enemy'), nl,
+    write('  unlock_skyforge. - Unlock the Skyforge (requires Skyforge Key)'), nl,
+    write('  craft_weapon.  - Craft a weapon at the Skyforge'), nl,
     write('  help.          - Show this list of commands'), nl.
 
 % Start the game
@@ -212,3 +224,23 @@ repair :-
         % No valid repair combination
         write('You don’t have the right parts to repair anything.'), nl
     ).
+
+% Unlocking the Skyforge
+unlock_skyforge :-
+    player(_, Location, _, Inventory),
+    Location = 'Sky Temple',
+    member('Skyforge Key', Inventory),
+    asserta(direction('Sky Temple', east, 'Skyforge')),
+    write('You unlock the path to the Skyforge!'), nl.
+
+% Crafting the Skyforge Weapon
+craft_weapon :-
+    player(_, Location, _, Inventory),
+    Location = 'Skyforge',
+    member('Rare Alloy', Inventory),
+    member('Dragon Scale', Inventory),
+    retract(player(_, Location, _, Inventory)),
+    select('Rare Alloy', Inventory, TempInventory),
+    select('Dragon Scale', TempInventory, NewInventory),
+    asserta(player(_, Location, _, ['Skyforge Blade' | NewInventory])),
+    write('The Skyforge Keeper crafts the Skyforge Blade for you!'), nl.
