@@ -60,7 +60,26 @@ look :-
     write('You are in: '), write(Location), nl,
     list_objects(Location),
     list_npcs(Location),
-    list_paths(Location).
+    list_paths_with_names(Location).
+
+% List available paths with destination names (show ??? for unreached locations)
+list_paths_with_names(Location) :-
+    findall(Direction-Dest, direction(Location, Direction, Dest), Paths),
+    (Paths = [] ->
+        write('No paths from here.'), nl
+    ;
+        write('Paths:'), nl,
+        show_paths_with_mask(Paths)
+    ).
+
+show_paths_with_mask([]).
+show_paths_with_mask([Direction-Dest|Rest]) :-
+    (visited(Dest) ->
+        write('  '), write(Direction), write(': '), write(Dest), nl
+    ;
+        write('  '), write(Direction), write(': ???'), nl
+    ),
+    show_paths_with_mask(Rest).  
 
 % List objects in the area
 list_objects(Location) :-
@@ -251,10 +270,10 @@ navigate :-
     write('The Sky Pirate shows you a hidden path through the ruins.'), nl.
 
 % Movement commands
-w :- move(north).
+n :- move(north).
 s :- move(south).
-d :- move(east).
-a :- move(west).
+e :- move(east).
+w :- move(west).
 
 % Show map with ??? for unvisited locations
 map :-
