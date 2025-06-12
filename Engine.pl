@@ -1,3 +1,4 @@
+% filepath: c:\HTL\POSE_Theorie\TextAdventure\Engine.pl
 :- dynamic(player/4).
 :- dynamic(object_at/2).
 :- dynamic(npc_at/2).
@@ -5,6 +6,7 @@
 :- dynamic(game_over/0).
 :- dynamic(visited/1).
 :- dynamic(direction/3).
+:- dynamic(in_battle/4).
 
 % Show welcome and help at load
 :- initialization(main).
@@ -92,11 +94,6 @@ list_objects(Location) :-
 list_npcs(Location) :-
     findall(NPC, npc_at(NPC, Location), NPCs),
     (NPCs \= [] -> (write('You encounter: '), write(NPCs), nl) ; true).
-
-% List available paths
-list_paths(Location) :-
-    findall(Direction, direction(Location, Direction, _), Directions),
-    write('Paths lead: '), write(Directions), nl.
 
 % Pick up objects (Add to inventory)
 take(Object) :-
@@ -203,13 +200,80 @@ trade :-
     asserta(player(_, Location, _, ['Plasma Cutter' | NewInventory])),
     write('You trade the Energy Cell for a Plasma Cutter!'), nl.
 
+% Start a battle if an enemy is present and not already in battle
 attack :-
-    player(_, Location, _, Inventory),
-    npc_at('Security Drone', Location),
-    member('Plasma Cutter', Inventory),
-    retract(npc_at('Security Drone', Location)),
-    write('You destroy the drone with the Plasma Cutter! The path is clear.'), nl,
-    check_story_progress.
+    in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack), !,
+    continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack).
+attack :-
+    player(_, Location, _, _),
+    npc_at(Enemy, Location),
+    enemy_stats(Enemy, EnemyMaxHP, EnemyAttack),
+    retractall(in_battle(_,_,_,_)),
+    asserta(in_battle(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+    write('A wild '), write(Enemy), write(' appears!'), nl,
+    show_battle_status(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack).
+attack :-
+    write('There is nothing to attack here.'), nl.
+
+% Show battle status and wait for player to enter attack command
+show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
+    player(PlayerName, _, PlayerHP, _),
+    write('--- BATTLE ---'), nl,
+    write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
+    write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
+    write('Type attack. to attack!'), nl.
+
+% Continue the battle phase after player enters attack.
+continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
+    player(PlayerName, PlayerLoc, PlayerHP, Inventory),
+    player_attack(Inventory, Damage),
+    write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl,
+    NewEnemyHP is EnemyHP - Damage,
+    (NewEnemyHP =< 0 ->
+        write('You defeated '), write(Enemy), write('!'), nl,
+        retract(npc_at(Enemy, PlayerLoc)),
+        retractall(in_battle(_,_,_,_)),
+        check_story_progress
+    ;
+        enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
+    ).
+
+% Player attack damage (stronger if Plasma Cutter+)
+player_attack(Inventory, 50) :- member('Plasma Cutter+', Inventory), !.
+player_attack(Inventory, 30) :- member('Plasma Cutter', Inventory), !.
+player_attack(_, 10).
+
+% Enemy turn, then show updated life bars and wait for next attack
+enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
+    player(PlayerName, PlayerLoc, PlayerHP, Inventory),
+    write(Enemy), write(' attacks you for '), write(EnemyAttack), write(' damage!'), nl,
+    NewPlayerHP is PlayerHP - EnemyAttack,
+    retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
+    asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
+    (NewPlayerHP =< 0 ->
+        write('You have been defeated by '), write(Enemy), write('!'), nl,
+        write('GAME OVER.'), nl,
+        retractall(in_battle(_,_,_,_)),
+        asserta(game_over)
+    ;
+        retractall(in_battle(_,_,_,_)),
+        asserta(in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)),
+        show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
+    ).
+
+% Show a simple ASCII life bar
+show_life_bar(Value, Max) :-
+    BarLen is 20,
+    Filled is max(0, min(BarLen, round((Value / Max) * BarLen))),
+    Empty is BarLen - Filled,
+    forall(between(1, Filled, _), write('#')),
+    forall(between(1, Empty, _), write('-')).
+
+% Enemy stats (add more as needed)
+enemy_stats('Enraged Dragon', 100, 40).
+enemy_stats('Security Drone', 50, 20).
+enemy_stats('Ancient Research Construct', 60, 15).
+enemy_stats('Lost Sky Pirate', 60, 20).
 
 sneak :-
     player(_, Location, _, _),
@@ -360,8 +424,6 @@ start :-
     asserta(visited('Crash Site')),
     nl, write('Welcome, '), write(PlayerName), write('.'), nl,
     look.
-
-% Enhanced Repair Function (already included above)
 
 % Unlocking the Skyforge
 unlock_skyforge :-
