@@ -4,6 +4,7 @@
 :- dynamic(main_quest/1).
 :- dynamic(game_over/0).
 :- dynamic(visited/1).
+:- dynamic(direction/3).
 
 % Show welcome and help at load
 :- initialization(main).
