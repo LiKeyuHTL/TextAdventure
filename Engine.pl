@@ -19,7 +19,7 @@ main :-
 object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
 object_at('Energy Cell', 'Ancient Workshop').
-object_at('Plasma Cutter', 'Skyship Dock').
+object_at('Plasma Cutter', 'Seceret Chamber').
 object_at('Skyforge Key', 'Ancient Workshop').
 object_at('Rare Alloy', 'Floating Docks').
 object_at('Dragon Scale', 'Sky Temple').
