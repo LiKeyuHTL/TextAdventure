@@ -45,6 +45,7 @@ direction('Floating Docks', east, 'Ancient Workshop').
 direction('Ancient Workshop', west, 'Floating Docks').
 direction('Sky Temple', east, 'Skyforge').
 direction('Skyforge', west, 'Sky Temple').
+direction('Seceret Chamber', south, 'Ruined Tower').
 
 % Move the player
 move(Direction) :-
@@ -424,7 +425,7 @@ progress_quest('blade_forged') :-
     write('You have everything needed to repair the skyship and escape!'), nl.
 
 progress_quest('ready_to_escape') :-
-    player(_, 'Skyship Dock', _, Inventory),
+    player(_, 'Skyship Dock', _, _), % <- hier _ statt Inventory
     object_at('Repaired Skyship', 'Skyship Dock'),
     write('You board the repaired skyship. The machines of the island stir as you prepare to leave.'), nl,
     write('Congratulations! You have escaped the island and completed your adventure!'), nl,
