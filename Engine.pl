@@ -171,7 +171,7 @@ interact('Enraged Dragon') :-
     write('The Enraged Dragon roars and attacks!'), nl,
     show_battle_status('Enraged Dragon', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 
-interact('Lost Sky Pirate') :-
+nteract('Lost Sky Pirate') :-
     player(Name, Location, HP, Inventory),
     ( member('Broken Gold Pistole', Inventory), member('Mysterious Metal', Inventory) ->
         select('Broken Gold Pistole', Inventory, TempInventory),
@@ -180,9 +180,10 @@ interact('Lost Sky Pirate') :-
         asserta(player(Name, Location, HP, NewInventory)),
         write('The Sky Pirate grins: "I\'ll take that broken gold pistole and this mysterious metal. I\'ll help you as promised, but don\'t expect me to risk my own neck in a fight!"'), nl,
         asserta(skypirate_help),
+        retract(npc_at('Lost Sky Pirate', Location)),
         write('The Sky Pirate is going to help you now in the battle!'), nl
     ; write('The Sky Pirate grins: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
-      write('Hint: Use analyze. in the ruined tower.'), nl
+      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
     ).
 
 interact('Mysterious Merchant') :-
@@ -318,6 +319,9 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
                 write('Hint: You can now use fly(\'Location\'). to travel instantly to any main location!'), nl
             ; true ),
             retract(npc_at(Enemy, PlayerLoc)),
+            ( skypirate_help, npc_at('Lost Sky Pirate', PlayerLoc) ->
+                retract(npc_at('Lost Sky Pirate', PlayerLoc))
+            ; true ),
             retractall(in_battle(_,_,_,_)),
             retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
             asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
@@ -488,6 +492,7 @@ negotiate :-
         asserta(player(Name, Location, HP, NewInventory)),
         write('You hand over the broken gold pistole. The Sky Pirate nods: "Alright, I\'ll help you out, but I\'m not risking my life!"'), nl,
         asserta(skypirate_help),
+        retract(npc_at('Lost Sky Pirate', Location)),
         write('The Sky Pirate is going to help you now in the battle!'), nl
     ; write('The Sky Pirate says: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
       write('Hint: Use analyze. in the ruined tower.'), nl
