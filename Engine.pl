@@ -1,4 +1,3 @@
-% filepath: c:\HTL\POSE_Theorie\TextAdventure\Engine.pl
 :- dynamic(player/4).
 :- dynamic(object_at/2).
 :- dynamic(npc_at/2).
@@ -16,8 +15,7 @@
 :- initialization(main).
 main :-
     write('Welcome to The Machines of the Sky!'), nl,
-    write('Type start. to begin your adventure.'), nl,
-    help.
+    write('Type start. to begin your adventure.'), nl.
 
 % Object locations
 object_at('Broken Gear', 'Crash Site').
@@ -613,42 +611,15 @@ help :-
 
 % Start the game
 start :-
-    retractall(player(_,_,_,_)),
-    retractall(game_over),
-    retractall(skypirate_help),
-    retractall(dragon_help),
-    retractall(dragon_burn_used),
-    retractall(drone_repaired),
-    retractall(burn_turns(_)),
-    retractall(in_battle(_,_,_,_)),
-    retractall(npc_at(_,_)),
-    retractall(object_at(_,_)),
-    retractall(visited(_)),
-    % Re-initialize objects
-    asserta(object_at('Broken Gear', 'Crash Site')),
-    asserta(object_at('Ancient Core', 'Ruined Tower')),
-    asserta(object_at('Energy Cell', 'Ancient Workshop')),
-    asserta(object_at('Plasma Cutter', 'Secret Chamber')),
-    asserta(object_at('Note', 'Secret Chamber')),
-    asserta(object_at('Mysterious Metal', 'Secret Chamber')),
-    asserta(object_at('Skyship Engine', 'Ancient Workshop')),
-    asserta(object_at('Rare Alloy', 'Floating Docks')),
-    asserta(object_at('Dragon Scale', 'Sky Temple')),
-    asserta(object_at('Skyforge Key', 'Ancient Workshop')),
-    % Re-initialize NPCs
-    asserta(npc_at('Ancient Console', 'Ruined Tower')),
-    asserta(npc_at('Enraged Dragon', 'Sky Temple')),
-    asserta(npc_at('Lost Sky Pirate', 'Floating Docks')),
-    asserta(npc_at('Security Drone', 'Skyship Dock')),
-    asserta(npc_at('Mysterious Merchant', 'Merchant House')),
-    % Re-initialize visited locations
-    asserta(visited('Crash Site')),
-    % Ask for player name and start game
-    write('Welcome to The Machines of the Sky!'), nl,
-    write('Type your name in single quotes (e.g. \'alex\').'), nl,
-    write('What is your name? '),
+    write('...'), nl,
+    write('You wake up to the sound of crackling wires and distant thunder.'), nl,
+    write('Your head aches. You remember falling...'), nl,
+    write('But who are you?'), nl,
+    write('What is your name? (Type your name in lowercase without space or in single quotes, e.g. yoshi. or \'Yo shi\'.) '),
     read(PlayerName),
+    retractall(player(_,_,_,_)),
     asserta(player(PlayerName, 'Crash Site', 100, [])),
-    nl, write('Welcome, '), write(PlayerName), write('.'), nl,
-    look,
-    help.
+    retractall(visited(_)),
+    asserta(visited('Crash Site')),
+    help,
+    look.
