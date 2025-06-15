@@ -265,6 +265,11 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
         ),
         ( FinalEnemyHP =< 0 ->
             write('You defeated '), write(Enemy), write('!'), nl,
+            ( Enemy = 'Enraged Dragon' ->
+                asserta(dragon_help),
+                write('The dragon bows its head: "You have proven your strength. I will help you reach your destinations quicker."'), nl,
+                write('Hint: You can now use fly(\'Location\'). to travel instantly to any main location!'), nl
+            ; true ),
             retract(npc_at(Enemy, PlayerLoc)),
             retractall(in_battle(_,_,_,_)),
             retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
@@ -389,6 +394,21 @@ negotiate :-
     ).
 negotiate :-
     write('There is no one here to negotiate with.'), nl.
+
+% Fly command (only available after defeating the dragon)
+fly(Destination) :-
+    dragon_help,
+    player(Name, Location, HP, Inventory),
+    ( Location = Destination ->
+        write('You are already at that location.'), nl
+    ;   asserta(player(Name, Destination, HP, Inventory)),
+        retract(player(Name, Location, HP, Inventory)),
+        asserta(visited(Destination)),
+        write('The dragon carries you swiftly to '), write(Destination), write('.'), nl,
+        look
+    ).
+fly(_) :-
+    write('You do not have the dragon\'s help yet.'), nl.
 
 % Enraged Dragon skills
 breathe_fire :-
