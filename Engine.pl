@@ -20,7 +20,7 @@ object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
 object_at('Energy Cell', 'Ancient Workshop').
 object_at('Plasma Cutter', 'Secret Chamber').
-object_at('Note', 'Secret Chamber').
+object_at('Broken Gold Pistole', 'Secret Chamber').
 object_at('Mysterious Metal', 'Secret Chamber').
 object_at('Skyforge Key', 'Ancient Workshop').
 object_at('Rare Alloy', 'Floating Docks').
@@ -31,21 +31,22 @@ object_at('Skyship Engine', 'Ancient Workshop').
 npc_at('Ancient Console', 'Ruined Tower').
 npc_at('Enraged Dragon', 'Sky Temple').
 npc_at('Lost Sky Pirate', 'Floating Docks').
-npc_at('Mechanic', 'Ancient Workshop').
+npc_at('Mysterious Merchant', 'Mysterious Workshop').
 npc_at('Security Drone', 'Skyship Dock').
-npc_at('Mysterious Merchant', 'Floating Docks').
 npc_at('Skyforge Keeper', 'Skyforge').
 
 % Locations and paths
 direction('Crash Site', east, 'Ruined Tower').
-direction('Ruined Tower', west, 'Crash Site').
 direction('Ruined Tower', north, 'Sky Temple').
-direction('Sky Temple', south, 'Ruined Tower').
+direction('Ruined Tower', south, 'Floating Docks').
+direction('Ruined Tower', west, 'Crash Site').
+direction('Floating Docks', north, 'Ruined Tower').
+direction('Floating Docks', east, 'Mysterious Workshop').
 direction('Floating Docks', south, 'Skyship Dock').
-direction('Skyship Dock', north, 'Floating Docks').
-direction('Floating Docks', east, 'Ancient Workshop').
-direction('Ancient Workshop', west, 'Floating Docks').
+direction('Mysterious Workshop', west, 'Floating Docks').
 direction('Sky Temple', east, 'Skyforge').
+direction('Sky Temple', south, 'Ruined Tower').
+direction('Skyship Dock', north, 'Floating Docks').
 direction('Skyforge', west, 'Sky Temple').
 
 % Move the player
@@ -150,17 +151,29 @@ interact('Ancient Console') :-
     write('But something went wrong. The test failed, and the entire island vanished from the world."'), nl,
     write('You feel the weight of ancient history and the danger that once threatened all kingdoms.'), nl, !.
 
-interact('Ancient Console') :-
-    write('The Ancient Console is broken. Maybe it can be repaired with the right parts.'), nl.
-
 interact('Enraged Dragon') :-
-    write('The dragon growls. "You awakened the old spirits, mortal. Prepare yourself."'), nl.
+    write('The dragon growls. "You awakened the old spirits, mortal. Prepare yourself."'), nl,
+    player(_, Location, _, _),
+    npc_at('Enraged Dragon', Location),
+    enemy_stats('Enraged Dragon', EnemyMaxHP, EnemyAttack),
+    retractall(in_battle(_,_,_,_)),
+    asserta(in_battle('Enraged Dragon', EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+    write('The Enraged Dragon roars and attacks!'), nl,
+    show_battle_status('Enraged Dragon', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 
 interact('Lost Sky Pirate') :-
-    write('The pirate smirks. "Looking for help? It will cost you."'), nl.
-
-interact('Mechanic') :-
-    write('The mechanic wipes oil from their hands. "Need something fixed? You better have parts."'), nl.
+    player(Name, Location, HP, Inventory),
+    ( member('Broken Gold Pistole', Inventory), member('Mysterious Metal', Inventory) ->
+        select('Broken Gold Pistole', Inventory, TempInventory),
+        select('Mysterious Metal', TempInventory, NewInventory),
+        retract(player(Name, Location, HP, Inventory)),
+        asserta(player(Name, Location, HP, NewInventory)),
+        write('The Sky Pirate grins: "I\'ll take that broken gold pistole and this mysterious metal. I\'ll help you as promised, but don\'t expect me to risk my own neck in a fight!"'), nl,
+        asserta(skypirate_help),
+        write('The Sky Pirate is going to help you now in the battle!'), nl
+    ; write('The Sky Pirate grins: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
+      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+    ).
 
 interact('Security Drone') :-
     write('The drone hovers. "INTRUDER ALERT! Leave immediately!"'), nl.
@@ -203,6 +216,15 @@ attack :-
     continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack).
 attack :-
     player(_, Location, _, _),
+    npc_at('Enraged Dragon', Location),
+    enemy_stats('Enraged Dragon', EnemyMaxHP, EnemyAttack),
+    retractall(in_battle(_,_,_,_)),
+    DragonStartHP is EnemyMaxHP - 20,
+    asserta(in_battle('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack)),
+    write('You catch the Enraged Dragon off guard! It starts the battle with 20 less HP.'), nl,
+    show_battle_status('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack).
+attack :-
+    player(_, Location, _, _),
     npc_at(Enemy, Location),
     enemy_stats(Enemy, EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
@@ -225,15 +247,34 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
     player_attack(Inventory, Damage),
-    write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl,
-    NewEnemyHP is EnemyHP - Damage,
-    (NewEnemyHP =< 0 ->
-        write('You defeated '), write(Enemy), write('!'), nl,
-        retract(npc_at(Enemy, PlayerLoc)),
-        retractall(in_battle(_,_,_,_)),
-        check_story_progress
+    ( skypirate_help ->
+        TotalDamage is Damage + 10,
+        write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl,
+        write('The Sky Pirate helps and deals 10 extra damage!'), nl
     ;
-        enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
+        TotalDamage = Damage,
+        write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl
+    ),
+    NewEnemyHP is EnemyHP - TotalDamage,
+    ( NewEnemyHP =< 0 ->
+        ( skypirate_help ->
+            write('The Sky Pirate uses Quickshot and deals 10 final damage!'), nl,
+            FinalEnemyHP is NewEnemyHP - 10
+        ;
+            FinalEnemyHP = NewEnemyHP
+        ),
+        ( FinalEnemyHP =< 0 ->
+            write('You defeated '), write(Enemy), write('!'), nl,
+            retract(npc_at(Enemy, PlayerLoc)),
+            retractall(in_battle(_,_,_,_)),
+            retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
+            asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+            ( skypirate_help -> retract(skypirate_help) ; true ),
+            write('You heal yourself after the battle. Your HP is restored to 100.'), nl,
+            check_story_progress
+        ;   enemy_turn(Enemy, FinalEnemyHP, EnemyMaxHP, EnemyAttack)
+        )
+    ; enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
     ).
 
 % Player attack damage (stronger if Plasma Cutter+)
@@ -247,13 +288,14 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     write(Enemy), write(' attacks you for '), write(EnemyAttack), write(' damage!'), nl,
     NewPlayerHP is PlayerHP - EnemyAttack,
     retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
-    asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
-    (NewPlayerHP =< 0 ->
-        write('You have been defeated by '), write(Enemy), write('!'), nl,
-        write('GAME OVER.'), nl,
+    ( NewPlayerHP =< 0 ->
+        asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
         retractall(in_battle(_,_,_,_)),
-        asserta(game_over)
+        write('You have been defeated by '), write(Enemy), write('!'), nl,
+        write('But you miraculously escape from death and flee the battle!'), nl,
+        write('You heal yourself after the battle. Your HP is restored to 100.'), nl
     ;
+        asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
         retractall(in_battle(_,_,_,_)),
         asserta(in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)),
         show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
@@ -268,15 +310,8 @@ show_life_bar(Value, Max) :-
     forall(between(1, Empty, _), write('-')).
 
 % Enemy stats (add more as needed)
-enemy_stats('Enraged Dragon', 100, 40).
-enemy_stats('Security Drone', 50, 20).
-enemy_stats('Ancient Research Construct', 60, 15).
-enemy_stats('Lost Sky Pirate', 60, 20).
-
-sneak :-
-    player(_, Location, _, _),
-    npc_at('Security Drone', Location),
-    write('You carefully sneak past the drone, avoiding its sensors.'), nl.
+enemy_stats('Enraged Dragon', 200, 40).
+enemy_stats('Security Drone', 190, 55).
 
 analyze :-
     player(_, Location, _, _),
@@ -289,16 +324,38 @@ analyze :-
         write('You discover a hidden passage to the east!'), nl
     ;   true
     ),
-    write('Maybe you can interact with the console to get some informations about this island.'), nl, !.
+    write('The Ancient Console looks broken. Maybe you could use a Broken Gear and an Ancient Core to upgrade your Plasma Cutter.'), nl,
+    analyze_npcs(Location), !.
 analyze :-
     player(_, Location, _, _),
     (   object_at(Object, Location)
     ->  write('You analyze the area and spot: '), write(Object), nl,
         write('It appears to be ancient technology. Maybe it can be repaired or used.'), nl
-    ;   npc_at(NPC, Location)
-    ->  write('You analyze '), write(NPC), write('. Weaknesses or functions detected.'), nl
-    ;   write('There is nothing unusual to analyze here.'), nl
+    ;   true
+    ),
+    analyze_npcs(Location), !.
+
+analyze_npcs(Location) :-
+    findall(NPC, npc_at(NPC, Location), NPCs),
+    ( NPCs = [] -> true
+    ; write('You analyze the NPCs here:'), nl,
+      forall(member(N, NPCs), describe_npc(N))
     ).
+
+describe_npc('Ancient Console') :-
+    write('  Ancient Console: Might reveal the secrets of the island if you interact with it.'), nl.
+describe_npc('Enraged Dragon') :-
+    write('  Enraged Dragon: A powerful foe. Prepare for a tough battle!'), nl.
+describe_npc('Lost Sky Pirate') :-
+    write('  Lost Sky Pirate: Maybe you can get his help for a price.'), nl.
+describe_npc('Security Drone') :-
+    write('  Security Drone: Dangerous. You may need a weapon to defeat it.'), nl.
+describe_npc('Mysterious Merchant') :-
+    write('  Mysterious Merchant: Trades rare items for the right price and can help repair or upgrade technology.'), nl.
+describe_npc('Skyforge Keeper') :-
+    write('  Skyforge Keeper: Can craft legendary weapons if you bring rare materials.'), nl.
+describe_npc(NPC) :-
+    write('  '), write(NPC), write(': No special information.'), nl.
 
 status :-
     player(Name, _, HP, Inventory),
@@ -318,22 +375,20 @@ read('Note') :-
 
 % Player skill: negotiate (with Sky Pirate)
 negotiate :-
-    player(_, Location, _, _),
+    player(Name, Location, HP, Inventory),
     npc_at('Lost Sky Pirate', Location),
-    write('You negotiate with the Sky Pirate. He offers you a safe route for a price.'), nl.
+    ( member('Broken Gold Pistole', Inventory) ->
+        select('Broken Gold Pistole', Inventory, NewInventory),
+        retract(player(Name, Location, HP, Inventory)),
+        asserta(player(Name, Location, HP, NewInventory)),
+        write('You hand over the broken gold pistole. The Sky Pirate nods: "Alright, I\'ll help you out, but I\'m not risking my life!"'), nl,
+        asserta(skypirate_help),
+        write('The Sky Pirate is going to help you now in the battle!'), nl
+    ; write('The Sky Pirate says: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
+      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+    ).
 negotiate :-
     write('There is no one here to negotiate with.'), nl.
-
-% Ancient Research Construct skills
-scan :-
-    player(_, Location, _, _),
-    npc_at('Ancient Research Construct', Location),
-    write('The construct scans you. Threat level: moderate. It watches your every move.'), nl.
-
-lockdown :-
-    player(_, Location, _, _),
-    npc_at('Ancient Research Construct', Location),
-    write('The construct activates a lockdown! Exits are sealed.'), nl.
 
 % Enraged Dragon skills
 breathe_fire :-
