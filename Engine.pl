@@ -351,7 +351,7 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, _) :-
 
 % Continue the battle phase after player enters attack.
 % Player attack damage (stronger if Plasma Cutter+)
-player_attack(Inventory, 70) :- member('Dragon Cutter++', Inventory), !.
+player_attack(Inventory, 65) :- member('Dragon Cutter++', Inventory), !.
 player_attack(Inventory, 60) :- member('Plasma Cutter+', Inventory), !.
 player_attack(Inventory, 40) :- member('Plasma Cutter', Inventory), !.
 player_attack(_, 10).
@@ -600,6 +600,7 @@ help :-
     write('  look.          - Look around your current location'), nl,
     write('  n. s. e. w.    - Move (north, south, east, west)'), nl,
     write('  take(Object).  - Pick up an object'), nl,
+    write('  take.          - Pick up all objects'), nl,
     write('  inventory.     - Check your inventory'), nl,
     write('  interact(NPC). - interact an NPC'), nl,
     write('  repair.        - Attempt to fix ancient machinery'), nl,
