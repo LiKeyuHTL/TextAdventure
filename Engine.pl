@@ -255,6 +255,19 @@ repair :-
     write('It transforms into a powerful Plasma Cutter+!'), nl, !.
 
 repair :-
+    player(Name, Location, Health, Inventory),
+    member('Plasma Cutter+', Inventory),
+    member('Dragon Scale', Inventory),
+    select('Plasma Cutter+', Inventory, Temp1),
+    select('Dragon Scale', Temp1, NewInventory),
+    retract(player(Name, Location, Health, Inventory)),
+    asserta(player(Name, Location, Health, ['Dragon Cutter++'|NewInventory])),
+    write('You fuse the Dragon Scale with your Plasma Cutter+.'), nl,
+    write('It transforms into the legendary Dragon Cutter++!'), nl,
+    write('This weapon deals 70 damage and heals you for 8 HP each time you attack.'), nl, !.
+
+
+repair :-
     write('You don\'t have the right parts to upgrade your Plasma Cutter or repair anything here.'), nl.
 
 % Start a battle if an enemy is present and not already in battle
@@ -288,6 +301,12 @@ attack :-
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
     player_attack(Inventory, Damage),
+    ( member('Dragon Cutter++', Inventory) ->
+        HealHP is min(100, PlayerHP + 8),
+        retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
+        asserta(player(PlayerName, PlayerLoc, HealHP, Inventory)),
+        write('The Dragon Cutter++ heals you for 8 HP!'), nl
+    ; true ),
     ( skypirate_help ->
         TotalDamage is Damage + 20,
         write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl,
@@ -316,7 +335,7 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
                 retract(npc_at('Lost Sky Pirate', PlayerLoc))
             ; true ),
             retractall(in_battle(_,_,_,_)),
-            retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
+            retract(player(PlayerName, PlayerLoc, _, Inventory)),
             asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
             write('You heal yourself after the battle. Your HP is restored to 100.'), nl
         ; enemy_turn(Enemy, FinalEnemyHP, EnemyMaxHP, EnemyAttack)
@@ -334,9 +353,10 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, _) :-
 
 % Continue the battle phase after player enters attack.
 % Player attack damage (stronger if Plasma Cutter+)
+player_attack(Inventory, 70) :- member('Dragon Cutter++', Inventory), !.
 player_attack(Inventory, 60) :- member('Plasma Cutter+', Inventory), !.
 player_attack(Inventory, 40) :- member('Plasma Cutter', Inventory), !.
-player_attack(_, 30).
+player_attack(_, 10).
 
 % Enemy turn, then show updated life bars and wait for next attack
 enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
