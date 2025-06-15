@@ -19,14 +19,16 @@ main :-
 object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
 object_at('Energy Cell', 'Ancient Workshop').
-object_at('Plasma Cutter', 'Seceret Chamber').
+object_at('Plasma Cutter', 'Secret Chamber').
+object_at('Note', 'Secret Chamber').
+object_at('Mysterious Metal', 'Secret Chamber').
 object_at('Skyforge Key', 'Ancient Workshop').
 object_at('Rare Alloy', 'Floating Docks').
 object_at('Dragon Scale', 'Sky Temple').
 object_at('Skyship Engine', 'Ancient Workshop').
 
 % NPC locations
-npc_at('Ancient Research Construct', 'Ruined Tower').
+npc_at('Ancient Console', 'Ruined Tower').
 npc_at('Enraged Dragon', 'Sky Temple').
 npc_at('Lost Sky Pirate', 'Floating Docks').
 npc_at('Mechanic', 'Ancient Workshop').
@@ -39,15 +41,12 @@ direction('Crash Site', east, 'Ruined Tower').
 direction('Ruined Tower', west, 'Crash Site').
 direction('Ruined Tower', north, 'Sky Temple').
 direction('Sky Temple', south, 'Ruined Tower').
-direction('Ruined Tower', east, 'Floating Docks').
-direction('Floating Docks', west, 'Ruined Tower').
 direction('Floating Docks', south, 'Skyship Dock').
 direction('Skyship Dock', north, 'Floating Docks').
 direction('Floating Docks', east, 'Ancient Workshop').
 direction('Ancient Workshop', west, 'Floating Docks').
 direction('Sky Temple', east, 'Skyforge').
 direction('Skyforge', west, 'Sky Temple').
-direction('Seceret Chamber', south, 'Ruined Tower').
 
 % Move the player
 move(Direction) :-
@@ -64,7 +63,7 @@ look :-
     write('You are in: '), write(Location), nl,
     list_objects(Location),
     list_npcs(Location),
-    list_paths_with_names(Location).
+    list_paths_with_names(Location), nl.
 
 % List available paths with destination names (show ??? for unreached locations)
 list_paths_with_names(Location) :-
@@ -106,6 +105,23 @@ take(Object) :-
     write('You picked up: '), write(Object), nl,
     check_story_progress.
 
+take :-
+    player(Name, Location, Health, Inventory),
+    findall(Object, object_at(Object, Location), Objects),
+    ( Objects = [] ->
+        write('There is nothing to take here.'), nl
+    ;
+        take_all_objects(Objects, Name, Location, Health, Inventory)
+    ).
+
+take_all_objects([], Name, Location, Health, Inventory) :-
+    asserta(player(Name, Location, Health, Inventory)),
+    write('You picked up everything here.'), nl.
+take_all_objects([Object|Rest], Name, Location, Health, Inventory) :-
+    retract(object_at(Object, Location)),
+    append([Object], Inventory, NewInventory),
+    take_all_objects(Rest, Name, Location, Health, NewInventory).
+
 % Drop objects (Remove from inventory)
 drop(Object) :-
     player(Name, Location, Health, Inventory),
@@ -122,15 +138,20 @@ inventory :-
     (Inventory = [] -> write('Your inventory is empty.'), nl ;
      write('You are carrying: '), write(Inventory), nl).
 
-% NPC interactions
-talk(NPC) :-
-    player(_, Location, _, _),
-    npc_at(NPC, Location),
-    interact(NPC).
-
 % Unique NPC dialogues
-interact('Ancient Research Construct') :-
-    write('The construct scans you. "Unauthorized access detected. Leave or be eliminated."'), nl.
+interact('Ancient Console') :-
+    write('The Ancient Console displays fragments of information about the island.'), nl,
+    write('You piece together the story from the console and your own discoveries:'), nl,
+    write('"This island was once the secret forge of the Akians, a kingdom bent on world domination.'), nl,
+    write('Here, new weapons were created for their armies under the rule of a tyrant.'), nl,
+    write('As the war turned against the Akians, the tyrant sought a final, desperate measure:'), nl,
+    write('He planned to use a piece of the moon as a meteor to destroy his enemies.'), nl,
+    write('This island was chosen as the test site for the doomsday weapon.'), nl,
+    write('But something went wrong. The test failed, and the entire island vanished from the world."'), nl,
+    write('You feel the weight of ancient history and the danger that once threatened all kingdoms.'), nl, !.
+
+interact('Ancient Console') :-
+    write('The Ancient Console is broken. Maybe it can be repaired with the right parts.'), nl.
 
 interact('Enraged Dragon') :-
     write('The dragon growls. "You awakened the old spirits, mortal. Prepare yourself."'), nl.
@@ -152,44 +173,20 @@ interact('Skyforge Keeper') :-
 
 % Player abilities
 repair :-
-    player(_, Location, _, Inventory),
-    (
-        % Fixing the Ancient Machine
-        (member('Broken Gear', Inventory), member('Ancient Core', Inventory)) ->
-        (
-            write('You assemble the broken parts... The ancient machine hums to life!'), nl,
-            write('A hidden passage is revealed!'), nl,
-            retract(object_at('Broken Gear', Location)),
-            retract(object_at('Ancient Core', Location)),
-            asserta(direction(Location, north, 'Secret Chamber')),
-            check_story_progress
-        );
+    player(Name, Location, Health, Inventory),
+    member('Plasma Cutter', Inventory),
+    member('Broken Gear', Inventory),
+    member('Ancient Core', Inventory),
+    select('Plasma Cutter', Inventory, Temp1),
+    select('Broken Gear', Temp1, Temp2),
+    select('Ancient Core', Temp2, NewInventory),
+    asserta(player(Name, Location, Health, ['Plasma Cutter+'|NewInventory])),
+    retract(player(Name, Location, Health, Inventory)),
+    write('You combine the Broken Gear and Ancient Core with your Plasma Cutter.'), nl,
+    write('It transforms into a powerful Plasma Cutter+!'), nl, !.
 
-        % Upgrading the Plasma Cutter
-        (member('Plasma Cutter', Inventory), member('Energy Cell', Inventory)) ->
-        (
-            write('You insert the Energy Cell into the Plasma Cutter... It glows with new power!'), nl,
-            write('Your attacks are now stronger!'), nl,
-            retract(object_at('Energy Cell', Location)),
-            asserta(object_at('Plasma Cutter+', Location))
-        );
-
-        % Repairing the Skyship
-        (member('Skyship Engine', Inventory), member('Ancient Core', Inventory), member('Energy Cell', Inventory)) ->
-        (
-            write('You install the Skyship Engine, connecting it with the Ancient Core...'), nl,
-            write('The ship roars to life! You have a way home!'), nl,
-            write('Congratulations! You can now escape!'), nl,
-            retract(object_at('Skyship Engine', Location)),
-            retract(object_at('Ancient Core', Location)),
-            retract(object_at('Energy Cell', Location)),
-            asserta(object_at('Repaired Skyship', 'Skyship Dock')),
-            check_story_progress
-        );
-
-        % No valid repair combination
-        write('You don’t have the right parts to repair anything.'), nl
-    ).
+repair :-
+    write('You don\'t have the right parts to repair or upgrade anything.'), nl.
 
 trade :-
     player(_, Location, _, Inventory),
@@ -221,7 +218,8 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     write('--- BATTLE ---'), nl,
     write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
     write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
-    write('Type attack. to attack!'), nl.
+    write('Type attack. to attack!'), nl,
+    fail.
 
 % Continue the battle phase after player enters attack.
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
@@ -280,7 +278,18 @@ sneak :-
     npc_at('Security Drone', Location),
     write('You carefully sneak past the drone, avoiding its sensors.'), nl.
 
-% Player skill: analyze
+analyze :-
+    player(_, Location, _, _),
+    Location = 'Ruined Tower',
+    (   \+ direction('Ruined Tower', east, 'Secret Chamber')
+    ->  write('You notice strange markings and a hidden mechanism on the wall.'), nl,
+        write('It looks like there could be a secret chamber to the east.'), nl,
+        asserta(direction('Ruined Tower', east, 'Secret Chamber')),
+        asserta(direction('Secret Chamber', west, 'Ruined Tower')),
+        write('You discover a hidden passage to the east!'), nl
+    ;   true
+    ),
+    write('Maybe you can interact with the console to get some informations about this island.'), nl, !.
 analyze :-
     player(_, Location, _, _),
     (   object_at(Object, Location)
@@ -290,6 +299,22 @@ analyze :-
     ->  write('You analyze '), write(NPC), write('. Weaknesses or functions detected.'), nl
     ;   write('There is nothing unusual to analyze here.'), nl
     ).
+
+status :-
+    player(Name, _, HP, Inventory),
+    write('Status for '), write(Name), write(':'), nl,
+    write('HP: '), show_life_bar(HP, 100), write(' ('), write(HP), write('/100)'), nl,
+    player_attack(Inventory, Damage),
+    write('Attack Damage: '), write(Damage), nl.
+
+read('Note') :-
+    player(_, Location, _, Inventory),
+    (   member('Note', Inventory)
+    ;   object_at('Note', Location)
+    ),
+    write('The note reads: "The machines remember. Only the worthy may claim the sky."'), nl.
+read('Note') :-
+    write('You do not see a note here.'), nl.
 
 % Player skill: negotiate (with Sky Pirate)
 negotiate :-
@@ -394,11 +419,11 @@ help :-
     write('Available commands:'), nl,
     write('  start.         - Begin your adventure'), nl,
     write('  look.          - Look around your current location'), nl,
-    write('  n. s. o. w.    - Move (north, south, east, west)'), nl,
+    write('  n. s. e. w.    - Move (north, south, east, west)'), nl,
     write('  take(Object).  - Pick up an object'), nl,
     write('  drop(Object).  - Drop an object'), nl,
     write('  inventory.     - Check your inventory'), nl,
-    write('  talk(NPC).     - Talk to an NPC'), nl,
+    write('  interact(NPC). - interact an NPC'), nl,
     write('  repair.        - Attempt to fix ancient machinery'), nl,
     write('  trade.         - Trade with the Mysterious Merchant'), nl,
     write('  attack.        - Attack the Security Drone (requires Plasma Cutter)'), nl,
@@ -514,4 +539,8 @@ quest :-
     write('Current main quest stage: '), write(State), nl.
 
 % Optionally, add a win command for testing
-win :- progress_quest('ready_to_escape').
+win :- 
+    main_quest('ready_to_escape'),
+    write('You have completed the game! Congratulations!'), nl,
+    retractall(game_over),
+    asserta(game_over).
