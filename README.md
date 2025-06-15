@@ -29,3 +29,18 @@ Your airship spirals out of control and crashes onto an unknown floating island 
 **Team members:**
 - Li Keyu
 - Bintinger Nico
+
+**How to Start the Game:**
+- Consult the game file and type start. at the Prolog prompt.
+- Enter your player name in single quotes when their are uppercase letters or space prompted (e.g., `'Player name'`).
+
+**How to Win**
+- Collect the **Skyship Engine**, **Ancient Core**, and **Energy Cell**.
+- Go to the **Skyship Dock** and use `repair.` to escape the island and win.
+
+**Tips**
+- Use `analyze.` often for hints.
+- Some NPCs require specific items to help you.
+- Upgrading your weapon makes battles easier.
+- always enter NPC name or Object name in single quotes.
+- `help.` — Show all commands you need.
