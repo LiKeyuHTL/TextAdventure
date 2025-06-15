@@ -7,6 +7,7 @@
 :- dynamic(direction/3).
 :- dynamic(in_battle/4).
 :- dynamic(burned/0).
+:- dynamic(burn_turns/1).
 :- dynamic(dragon_burn_used/0).
 :- dynamic(drone_repaired/0).
 :- dynamic(skypirate_help/0).
@@ -171,33 +172,41 @@ interact('Enraged Dragon') :-
     write('The Enraged Dragon roars and attacks!'), nl,
     show_battle_status('Enraged Dragon', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 
-nteract('Lost Sky Pirate') :-
+interact('Lost Sky Pirate') :-
     player(Name, Location, HP, Inventory),
-    ( member('Broken Gold Pistole', Inventory), member('Mysterious Metal', Inventory) ->
-        select('Broken Gold Pistole', Inventory, TempInventory),
-        select('Mysterious Metal', TempInventory, NewInventory),
-        retract(player(Name, Location, HP, Inventory)),
-        asserta(player(Name, Location, HP, NewInventory)),
-        write('The Sky Pirate grins: "I\'ll take that broken gold pistole and this mysterious metal. I\'ll help you as promised, but don\'t expect me to risk my own neck in a fight!"'), nl,
-        asserta(skypirate_help),
-        retract(npc_at('Lost Sky Pirate', Location)),
-        write('The Sky Pirate is going to help you now in the battle!'), nl
-    ; write('The Sky Pirate grins: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
-      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+    ( npc_at('Lost Sky Pirate', Location) ->
+        ( member('Broken Gold Pistole', Inventory), member('Mysterious Metal', Inventory) ->
+            select('Broken Gold Pistole', Inventory, TempInventory),
+            select('Mysterious Metal', TempInventory, NewInventory),
+            retract(player(Name, Location, HP, Inventory)),
+            asserta(player(Name, Location, HP, NewInventory)),
+            write('The Sky Pirate grins: "I\'ll take that broken gold pistole and this mysterious metal. I\'ll help you as promised, but don\'t expect me to risk my own neck in a fight!"'), nl,
+            asserta(skypirate_help),
+            retract(npc_at('Lost Sky Pirate', Location)),
+            write('The Sky Pirate is going to help you now in the battle!'), nl
+        ; write('The Sky Pirate grins: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
+          write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+        )
+    ; skypirate_help ->
+        write('The Sky Pirate is no longer here, but you feel his support in every battle.'), nl
+    ; write('There is no Sky Pirate here.'), nl
     ).
 
 interact('Mysterious Merchant') :-
     player(Name, Location, HP, Inventory),
-    ( member('Mysterious Metal', Inventory) ->
-        select('Mysterious Metal', Inventory, NewInventory),
-        retract(player(Name, Location, HP, Inventory)),
-        asserta(player(Name, Location, HP, ['Magicsteel Armour'|NewInventory])),
-        write('The Mysterious Merchant takes your Mysterious Metal and hands you a shimmering Magicsteel Armour!'), nl,
-        write('You feel protected. (You will take 20 less damage from attacks.)'), nl
-    ; member('Plasma Cutter', Inventory) ->
-        write('The Mysterious Merchant says: "That Plasma Cutter looks worn. You could repair and upgrade it with a Rare Alloy, a Broken Gear, and an Ancient Core."'), nl,
-        write('Hint: Use the command repair. after you have collected all three parts.'), nl
-    ; write('The Mysterious Merchant says: "Bring me something rare and I might have something special for you."'), nl
+    ( npc_at('Mysterious Merchant', Location) ->
+        ( member('Mysterious Metal', Inventory) ->
+            select('Mysterious Metal', Inventory, NewInventory),
+            retract(player(Name, Location, HP, Inventory)),
+            asserta(player(Name, Location, HP, ['Magicsteel Armour'|NewInventory])),
+            write('The Mysterious Merchant takes your Mysterious Metal and hands you a shimmering Magicsteel Armour!'), nl,
+            write('You feel protected. (You will take 20 less damage from attacks.)'), nl
+        ; member('Plasma Cutter', Inventory) ->
+            write('The Mysterious Merchant says: "That Plasma Cutter looks worn. You could upgrade it with an Energy Cell, a Broken Gear, and an Ancient Core."'), nl,
+            write('Hint: Use the command repair. after you have collected all three parts to upgrade your Plasma Cutter.'), nl
+        ; write('The Mysterious Merchant says: "Bring me something rare and I might have something special for you."'), nl
+        )
+    ; write('There is no Mysterious Merchant here.'), nl
     ).
 
 interact('Security Drone') :-
@@ -228,7 +237,7 @@ repair :-
     asserta(game_over), !.
 
 repair :-
-    player(Name, Location, Health, Inventory),
+    player(_, Location, _, _),
     Location = 'Skyship Dock',
     write('You do not have all the parts needed to repair the skyship.'), nl, !.
 
@@ -258,40 +267,24 @@ attack :-
     enemy_stats('Enraged Dragon', EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
     retractall(dragon_burn_used),
+    retractall(burn_turns(_)),
     DragonStartHP is EnemyMaxHP - 20,
     asserta(in_battle('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack)),
     write('You catch the Enraged Dragon off guard! It starts the battle with 20 less HP.'), nl,
     show_battle_status('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack).
 attack :-
     player(_, Location, _, _),
-    npc_at('Security Drone', Location),
-    enemy_stats('Security Drone', EnemyMaxHP, EnemyAttack),
-    retractall(in_battle(_,_,_,_)),
-    retractall(drone_repaired),
-    asserta(in_battle('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
-    write('A wild Security Drone appears!'), nl,
-    show_battle_status('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
-attack :-
-    player(_, Location, _, _),
     npc_at(Enemy, Location),
     enemy_stats(Enemy, EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
-    (Enemy = 'Enraged Dragon' -> retractall(dragon_burn_used) ; true),
+    (Enemy = 'Enraged Dragon' -> retractall(dragon_burn_used), retractall(burn_turns(_)) ; true),
     asserta(in_battle(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
     write('A wild '), write(Enemy), write(' appears!'), nl,
     show_battle_status(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 attack :-
     write('There is nothing to attack here.'), nl.
 
-% Show battle status and wait for player to enter attack command
-show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
-    player(PlayerName, _, PlayerHP, _),
-    write('--- BATTLE ---'), nl,
-    write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
-    write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
-    write('Type attack. to attack!'), nl.
-
-% Continue the battle phase after player enters attack.
+% Continue the battle phase
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
     player_attack(Inventory, Damage),
@@ -331,6 +324,15 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     ; enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
     ).
 
+% Show battle status and wait for player to enter attack command
+show_battle_status(Enemy, EnemyHP, EnemyMaxHP, _) :-
+    player(PlayerName, _, PlayerHP, _),
+    write('--- BATTLE ---'), nl,
+    write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
+    write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
+    write('Type attack. to attack!'), nl.
+
+% Continue the battle phase after player enters attack.
 % Player attack damage (stronger if Plasma Cutter+)
 player_attack(Inventory, 60) :- member('Plasma Cutter+', Inventory), !.
 player_attack(Inventory, 40) :- member('Plasma Cutter', Inventory), !.
@@ -339,11 +341,13 @@ player_attack(_, 30).
 % Enemy turn, then show updated life bars and wait for next attack
 enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
+    % Dragon burn skill (once per battle, sets 4 burn turns)
     ( Enemy = 'Enraged Dragon', \+ dragon_burn_used ->
-        write('The Enraged Dragon breathes fire! You are burned and will take extra damage next round.'), nl,
-        asserta(burned),
+        write('The Enraged Dragon breathes fire! You are burned and will take extra damage for the next 4 turns.'), nl,
+        asserta(burn_turns(4)),
         asserta(dragon_burn_used)
     ; true ),
+    % Drone self-repair (once per battle, if HP < 70)
     ( Enemy = 'Security Drone', EnemyHP < 70, \+ drone_repaired ->
         NewEnemyHP is min(EnemyHP + 50, EnemyMaxHP),
         asserta(drone_repaired),
@@ -354,23 +358,28 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
             ReducedAttack is max(0, EnemyAttack - 20)
         ;   ReducedAttack = EnemyAttack
         ),
-        ( burned ->
+        % Apply burn damage if active
+        ( burn_turns(Turns), Turns > 0 ->
             TotalAttack is ReducedAttack + 5,
-            retract(burned),
-            write('You suffer 5 extra burn damage!'), nl
+            NewTurns is Turns - 1,
+            retract(burn_turns(Turns)),
+            (NewTurns > 0 -> asserta(burn_turns(NewTurns)) ; true),
+            write('You suffer 5 extra burn damage! ('), write(NewTurns), write(' turns of burn left)'), nl
         ;   TotalAttack = ReducedAttack
         ),
         write(Enemy), write(' attacks you for '), write(TotalAttack), write(' damage!'), nl,
         NewPlayerHP is PlayerHP - TotalAttack,
         retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
         ( NewPlayerHP =< 0 ->
-            asserta(player(PlayerName, PlayerLoc, 1, Inventory)),
+            asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
             retractall(in_battle(_,_,_,_)),
             retractall(dragon_burn_used),
             retractall(drone_repaired),
+            retractall(burn_turns(_)),
             write('You have been defeated by '), write(Enemy), write('!'), nl,
             write('But you miraculously escape from death and flee the battle!'), nl,
-            write('You barely survive, but the battle is over as if it never happened.'), nl
+            write('You barely survive, but the battle is over as if it never happened.'), nl,
+            write('You heal yourself after the battle. Your HP is restored to 100.'), nl
         ;
             asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
             retractall(in_battle(_,_,_,_)),
@@ -386,9 +395,13 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
                         write('Hint: You can now use fly(\'Location\'). to travel instantly to any main location!'), nl
                     ; true ),
                     retract(npc_at(Enemy, PlayerLoc)),
+                    ( skypirate_help, npc_at('Lost Sky Pirate', PlayerLoc) ->
+                        retract(npc_at('Lost Sky Pirate', PlayerLoc))
+                    ; true ),
                     retractall(in_battle(_,_,_,_)),
                     retract(player(PlayerName, PlayerLoc, 100, Inventory)),
                     asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+                    retractall(burn_turns(_)),
                     write('You heal yourself after the battle. Your HP is restored to 100.'), nl
                 ; 
                     retractall(in_battle(_,_,_,_)),
@@ -410,9 +423,10 @@ show_life_bar(Value, Max) :-
     forall(between(1, Empty, _), write('-')).
 
 % Enemy stats (add more as needed)
-enemy_stats('Enraged Dragon', 200, 40).
-enemy_stats('Security Drone', 190, 55).
+enemy_stats('Enraged Dragon', 200, 35).
+enemy_stats('Security Drone', 190, 25).
 
+% Analyze command to discover secrets or analyze technology
 analyze :-
     player(_, Location, _, _),
     Location = 'Ruined Tower',
@@ -426,14 +440,7 @@ analyze :-
     ),
     write('The Ancient Console looks broken. Maybe you could use a Broken Gear and an Ancient Core to upgrade your Plasma Cutter.'), nl,
     analyze_npcs(Location), !.
-analyze :-
-    player(_, Location, _, _),
-    (   object_at(Object, Location)
-    ->  write('You analyze the area and spot: '), write(Object), nl,
-        write('It appears to be ancient technology. Maybe it can be repaired or used.'), nl
-    ;   true
-    ),
-    analyze_npcs(Location), !.
+
 analyze :-
     player(_, Location, _, _),
     Location = 'Skyship Dock',
@@ -443,6 +450,15 @@ analyze :-
     write('  - Ancient Core'), nl,
     write('  - Energy Cell'), nl,
     write('Hint: Collect all these parts and use the command repair. at the Skyship Dock to escape!'), nl, !.
+
+analyze :-
+    player(_, Location, _, _),
+    (   object_at(Object, Location)
+    ->  write('You analyze the area and spot: '), write(Object), nl,
+        write('It appears to be ancient technology. Maybe it can be repaired or used.'), nl
+    ;   true
+    ),
+    analyze_npcs(Location), !.
 
 analyze_npcs(Location) :-
     findall(NPC, npc_at(NPC, Location), NPCs),
@@ -472,15 +488,6 @@ status :-
     write('HP: '), show_life_bar(HP, 100), write(' ('), write(HP), write('/100)'), nl,
     player_attack(Inventory, Damage),
     write('Attack Damage: '), write(Damage), nl.
-
-read('Note') :-
-    player(_, Location, _, Inventory),
-    (   member('Note', Inventory)
-    ;   object_at('Note', Location)
-    ),
-    write('The note reads: "The machines remember. Only the worthy may claim the sky."'), nl.
-read('Note') :-
-    write('You do not see a note here.'), nl.
 
 % Player skill: negotiate (with Sky Pirate)
 negotiate :-
@@ -515,33 +522,13 @@ fly(Destination) :-
 fly(_) :-
     write('You do not have the dragon\'s help yet.'), nl.
 
-% Enraged Dragon skills
-breathe_fire :-
-    player(Name, Location, Health, Inventory),
-    npc_at('Enraged Dragon', Location),
-    NewHealth is Health - 40,
-    retract(player(Name, Location, Health, Inventory)),
-    asserta(player(Name, Location, NewHealth, Inventory)),
-    write('The dragon breathes fire! You are burned and lose 40 health.'), nl,
-    check_health.
-
-% Lost Sky Pirate skills
-quickshot :-
-    player(Name, Location, Health, Inventory),
-    npc_at('Lost Sky Pirate', Location),
-    NewHealth is Health - 20,
-    retract(player(Name, Location, Health, Inventory)),
-    asserta(player(Name, Location, NewHealth, Inventory)),
-    write('The Sky Pirate fires a quick shot! You lose 20 health.'), nl,
-    check_health.
-
 % Movement commands
 n :- move(north).
 s :- move(south).
 e :- move(east).
 w :- move(west).
 
-% Show map with ??? for unvisited locations
+% Show the map of the game
 map :-
     write('--- MAP OF THE MACHINES OF THE SKY ---'), nl,
     show_location_masked('Crash Site'),
@@ -588,7 +575,7 @@ show_paths([Direction-Dest|Rest]) :-
     ),
     show_paths(Rest).
 
-% HELP FUNCTION
+% Help command to show available commands
 help :-
     write('Available commands:'), nl,
     write('  start.         - Begin your adventure'), nl,
@@ -604,17 +591,44 @@ help :-
     write('  map.           - Show the locations'), nl,
     write('  help.          - Show this list of commands'), nl.
 
-% Begin the adventure, ask for name, intro, etc.
+% Start the game
 start :-
-    write('...'), nl,
-    write('You wake up to the sound of crackling wires and distant thunder.'), nl,
-    write('Your head aches. You remember falling...'), nl,
-    write('But who are you?'), nl,
-    write('What is your name? (Type your name in lowercase or in single quotes, e.g. yoshi. or \'Yo shi\'.) '),
-    read(PlayerName),
     retractall(player(_,_,_,_)),
-    asserta(player(PlayerName, 'Crash Site', 100, [])),
+    retractall(game_over),
+    retractall(skypirate_help),
+    retractall(dragon_help),
+    retractall(dragon_burn_used),
+    retractall(drone_repaired),
+    retractall(burn_turns(_)),
+    retractall(in_battle(_,_,_,_)),
+    retractall(npc_at(_,_)),
+    retractall(object_at(_,_)),
     retractall(visited(_)),
+    % Re-initialize objects
+    asserta(object_at('Broken Gear', 'Crash Site')),
+    asserta(object_at('Ancient Core', 'Ruined Tower')),
+    asserta(object_at('Energy Cell', 'Ancient Workshop')),
+    asserta(object_at('Plasma Cutter', 'Secret Chamber')),
+    asserta(object_at('Note', 'Secret Chamber')),
+    asserta(object_at('Mysterious Metal', 'Secret Chamber')),
+    asserta(object_at('Skyship Engine', 'Ancient Workshop')),
+    asserta(object_at('Rare Alloy', 'Floating Docks')),
+    asserta(object_at('Dragon Scale', 'Sky Temple')),
+    asserta(object_at('Skyforge Key', 'Ancient Workshop')),
+    % Re-initialize NPCs
+    asserta(npc_at('Ancient Console', 'Ruined Tower')),
+    asserta(npc_at('Enraged Dragon', 'Sky Temple')),
+    asserta(npc_at('Lost Sky Pirate', 'Floating Docks')),
+    asserta(npc_at('Security Drone', 'Skyship Dock')),
+    asserta(npc_at('Mysterious Merchant', 'Merchant House')),
+    % Re-initialize visited locations
     asserta(visited('Crash Site')),
+    % Ask for player name and start game
+    write('Welcome to The Machines of the Sky!'), nl,
+    write('Type your name in single quotes (e.g. \'alex\').'), nl,
+    write('What is your name? '),
+    read(PlayerName),
+    asserta(player(PlayerName, 'Crash Site', 100, [])),
     nl, write('Welcome, '), write(PlayerName), write('.'), nl,
-    look.
+    look,
+    help.
