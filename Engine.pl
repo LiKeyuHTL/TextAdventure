@@ -2,11 +2,14 @@
 :- dynamic(player/4).
 :- dynamic(object_at/2).
 :- dynamic(npc_at/2).
-:- dynamic(main_quest/1).
 :- dynamic(game_over/0).
 :- dynamic(visited/1).
 :- dynamic(direction/3).
 :- dynamic(in_battle/4).
+:- dynamic(burned/0).
+:- dynamic(dragon_burn_used/0).
+:- dynamic(drone_repaired/0).
+:- dynamic(skypirate_help/0).
 
 % Show welcome and help at load
 :- initialization(main).
@@ -18,22 +21,20 @@ main :-
 % Object locations
 object_at('Broken Gear', 'Crash Site').
 object_at('Ancient Core', 'Ruined Tower').
-object_at('Energy Cell', 'Ancient Workshop').
+object_at('Energy Cell', 'Ruined Tower').
 object_at('Plasma Cutter', 'Secret Chamber').
 object_at('Broken Gold Pistole', 'Secret Chamber').
 object_at('Mysterious Metal', 'Secret Chamber').
-object_at('Skyforge Key', 'Ancient Workshop').
 object_at('Rare Alloy', 'Floating Docks').
 object_at('Dragon Scale', 'Sky Temple').
-object_at('Skyship Engine', 'Ancient Workshop').
+object_at('Skyship Engine', 'Skyship Dock').
 
 % NPC locations
 npc_at('Ancient Console', 'Ruined Tower').
 npc_at('Enraged Dragon', 'Sky Temple').
 npc_at('Lost Sky Pirate', 'Floating Docks').
-npc_at('Mysterious Merchant', 'Mysterious Workshop').
+npc_at('Mysterious Merchant', 'Merchant House').
 npc_at('Security Drone', 'Skyship Dock').
-npc_at('Skyforge Keeper', 'Skyforge').
 
 % Locations and paths
 direction('Crash Site', east, 'Ruined Tower').
@@ -41,13 +42,11 @@ direction('Ruined Tower', north, 'Sky Temple').
 direction('Ruined Tower', south, 'Floating Docks').
 direction('Ruined Tower', west, 'Crash Site').
 direction('Floating Docks', north, 'Ruined Tower').
-direction('Floating Docks', east, 'Mysterious Workshop').
+direction('Floating Docks', east, 'Merchant House').
 direction('Floating Docks', south, 'Skyship Dock').
-direction('Mysterious Workshop', west, 'Floating Docks').
-direction('Sky Temple', east, 'Skyforge').
+direction('Merchant House', west, 'Floating Docks').
 direction('Sky Temple', south, 'Ruined Tower').
 direction('Skyship Dock', north, 'Floating Docks').
-direction('Skyforge', west, 'Sky Temple').
 
 % Move the player
 move(Direction) :-
@@ -56,7 +55,18 @@ move(Direction) :-
     retract(player(Name, Location, Health, Inventory)),
     asserta(player(Name, NewLocation, Health, Inventory)),
     (visited(NewLocation) -> true ; asserta(visited(NewLocation))),
-    look.
+    ( NewLocation = 'Skyship Dock',
+      npc_at('Security Drone', 'Skyship Dock'),
+      \+ in_battle('Security Drone', _, _, _)
+    ->
+        enemy_stats('Security Drone', EnemyMaxHP, EnemyAttack),
+        retractall(in_battle(_,_,_,_)),
+        asserta(in_battle('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+        write('The Security Drone detects you as you arrive and attacks!'), nl,
+        show_battle_status('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack)
+    ;
+        look
+    ).
 
 % Look around
 look :-
@@ -103,8 +113,7 @@ take(Object) :-
     append([Object], Inventory, NewInventory),
     retract(player(Name, Location, Health, Inventory)),
     asserta(player(Name, Location, Health, NewInventory)),
-    write('You picked up: '), write(Object), nl,
-    check_story_progress.
+    write('You picked up: '), write(Object), nl.
 
 take :-
     player(Name, Location, Health, Inventory),
@@ -116,6 +125,7 @@ take :-
     ).
 
 take_all_objects([], Name, Location, Health, Inventory) :-
+    retract(player(Name, Location, Health, _)),
     asserta(player(Name, Location, Health, Inventory)),
     write('You picked up everything here.'), nl.
 take_all_objects([Object|Rest], Name, Location, Health, Inventory) :-
@@ -172,43 +182,70 @@ interact('Lost Sky Pirate') :-
         asserta(skypirate_help),
         write('The Sky Pirate is going to help you now in the battle!'), nl
     ; write('The Sky Pirate grins: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
-      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+      write('Hint: Use analyze. in the ruined tower.'), nl
+    ).
+
+interact('Mysterious Merchant') :-
+    player(Name, Location, HP, Inventory),
+    ( member('Mysterious Metal', Inventory) ->
+        select('Mysterious Metal', Inventory, NewInventory),
+        retract(player(Name, Location, HP, Inventory)),
+        asserta(player(Name, Location, HP, ['Magicsteel Armour'|NewInventory])),
+        write('The Mysterious Merchant takes your Mysterious Metal and hands you a shimmering Magicsteel Armour!'), nl,
+        write('You feel protected. (You will take 20 less damage from attacks.)'), nl
+    ; member('Plasma Cutter', Inventory) ->
+        write('The Mysterious Merchant says: "That Plasma Cutter looks worn. You could repair and upgrade it with a Rare Alloy, a Broken Gear, and an Ancient Core."'), nl,
+        write('Hint: Use the command repair. after you have collected all three parts.'), nl
+    ; write('The Mysterious Merchant says: "Bring me something rare and I might have something special for you."'), nl
     ).
 
 interact('Security Drone') :-
-    write('The drone hovers. "INTRUDER ALERT! Leave immediately!"'), nl.
-
-interact('Mysterious Merchant') :-
-    write('The merchant grins. "I have rare goods. But they don’t come cheap."'), nl.
-
-interact('Skyforge Keeper') :-
-    write('The Skyforge Keeper speaks: "Bring me the Rare Alloy and Dragon Scale, and I will craft a weapon of legend."'), nl.
+    write('The Security Drone beeps: "Unauthorized access detected. Initiating defense protocol."'), nl,
+    player(_, Location, _, _),
+    npc_at('Security Drone', Location),
+    enemy_stats('Security Drone', EnemyMaxHP, EnemyAttack),
+    retractall(in_battle(_,_,_,_)),
+    asserta(in_battle('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+    write('The Security Drone flashes red and attacks you!'), nl,
+    show_battle_status('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 
 % Player abilities
 repair :-
     player(Name, Location, Health, Inventory),
-    member('Plasma Cutter', Inventory),
-    member('Broken Gear', Inventory),
+    Location = 'Skyship Dock',
+    member('Skyship Engine', Inventory),
     member('Ancient Core', Inventory),
-    select('Plasma Cutter', Inventory, Temp1),
-    select('Broken Gear', Temp1, Temp2),
-    select('Ancient Core', Temp2, NewInventory),
-    asserta(player(Name, Location, Health, ['Plasma Cutter+'|NewInventory])),
+    member('Energy Cell', Inventory),
+    select('Skyship Engine', Inventory, Temp1),
+    select('Ancient Core', Temp1, Temp2),
+    select('Energy Cell', Temp2, NewInventory),
     retract(player(Name, Location, Health, Inventory)),
-    write('You combine the Broken Gear and Ancient Core with your Plasma Cutter.'), nl,
+    asserta(player(Name, Location, Health, NewInventory)),
+    write('You install the Skyship Engine, Ancient Core, and Energy Cell into the skyship.'), nl,
+    write('The engines roar to life and the ship lifts off!'), nl,
+    write('Congratulations! You have repaired the skyship and escaped the island!'), nl,
+    asserta(game_over), !.
+
+repair :-
+    player(Name, Location, Health, Inventory),
+    Location = 'Skyship Dock',
+    write('You do not have all the parts needed to repair the skyship.'), nl, !.
+
+repair :-
+    player(Name, Location, Health, Inventory),
+    member('Plasma Cutter', Inventory),
+    member('Rare Alloy', Inventory),
+    member('Broken Gear', Inventory),
+    select('Plasma Cutter', Inventory, Temp1),
+    select('Rare Alloy', Temp1, Temp2),
+    select('Broken Gear', Temp2, NewInventory),
+    retract(player(Name, Location, Health, Inventory)),
+    asserta(player(Name, Location, Health, ['Plasma Cutter+'|NewInventory])),
+    write('You combine the Energy Cell and Broken Gear with your Plasma Cutter.'), nl,
     write('It transforms into a powerful Plasma Cutter+!'), nl, !.
 
 repair :-
-    write('You don\'t have the right parts to repair or upgrade anything.'), nl.
-
-trade :-
-    player(_, Location, _, Inventory),
-    npc_at('Mysterious Merchant', Location),
-    member('Energy Cell', Inventory),
-    retract(player(_, Location, _, Inventory)),
-    select('Energy Cell', Inventory, NewInventory),
-    asserta(player(_, Location, _, ['Plasma Cutter' | NewInventory])),
-    write('You trade the Energy Cell for a Plasma Cutter!'), nl.
+    write('You don\'t have the right parts to upgrade your Plasma Cutter or repair anything here.'), nl.
 
 % Start a battle if an enemy is present and not already in battle
 attack :-
@@ -219,15 +256,26 @@ attack :-
     npc_at('Enraged Dragon', Location),
     enemy_stats('Enraged Dragon', EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
+    retractall(dragon_burn_used),
     DragonStartHP is EnemyMaxHP - 20,
     asserta(in_battle('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack)),
     write('You catch the Enraged Dragon off guard! It starts the battle with 20 less HP.'), nl,
     show_battle_status('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack).
 attack :-
     player(_, Location, _, _),
+    npc_at('Security Drone', Location),
+    enemy_stats('Security Drone', EnemyMaxHP, EnemyAttack),
+    retractall(in_battle(_,_,_,_)),
+    retractall(drone_repaired),
+    asserta(in_battle('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+    write('A wild Security Drone appears!'), nl,
+    show_battle_status('Security Drone', EnemyMaxHP, EnemyMaxHP, EnemyAttack).
+attack :-
+    player(_, Location, _, _),
     npc_at(Enemy, Location),
     enemy_stats(Enemy, EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
+    (Enemy = 'Enraged Dragon' -> retractall(dragon_burn_used) ; true),
     asserta(in_battle(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
     write('A wild '), write(Enemy), write(' appears!'), nl,
     show_battle_status(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack).
@@ -240,8 +288,7 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     write('--- BATTLE ---'), nl,
     write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
     write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
-    write('Type attack. to attack!'), nl,
-    fail.
+    write('Type attack. to attack!'), nl.
 
 % Continue the battle phase after player enters attack.
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
@@ -274,36 +321,61 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
             retractall(in_battle(_,_,_,_)),
             retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
             asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
-            ( skypirate_help -> retract(skypirate_help) ; true ),
-            write('You heal yourself after the battle. Your HP is restored to 100.'), nl,
-            check_story_progress
-        ;   enemy_turn(Enemy, FinalEnemyHP, EnemyMaxHP, EnemyAttack)
+            write('You heal yourself after the battle. Your HP is restored to 100.'), nl
+        ; enemy_turn(Enemy, FinalEnemyHP, EnemyMaxHP, EnemyAttack)
         )
     ; enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
     ).
 
 % Player attack damage (stronger if Plasma Cutter+)
-player_attack(Inventory, 50) :- member('Plasma Cutter+', Inventory), !.
-player_attack(Inventory, 30) :- member('Plasma Cutter', Inventory), !.
-player_attack(_, 10).
+player_attack(Inventory, 60) :- member('Plasma Cutter+', Inventory), !.
+player_attack(Inventory, 40) :- member('Plasma Cutter', Inventory), !.
+player_attack(_, 30).
 
 % Enemy turn, then show updated life bars and wait for next attack
 enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
-    write(Enemy), write(' attacks you for '), write(EnemyAttack), write(' damage!'), nl,
-    NewPlayerHP is PlayerHP - EnemyAttack,
-    retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
-    ( NewPlayerHP =< 0 ->
-        asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
-        retractall(in_battle(_,_,_,_)),
-        write('You have been defeated by '), write(Enemy), write('!'), nl,
-        write('But you miraculously escape from death and flee the battle!'), nl,
-        write('You heal yourself after the battle. Your HP is restored to 100.'), nl
-    ;
-        asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
-        retractall(in_battle(_,_,_,_)),
-        asserta(in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)),
-        show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
+    % Dragon burn skill (once per battle)
+    ( Enemy = 'Enraged Dragon', \+ dragon_burn_used ->
+        write('The Enraged Dragon breathes fire! You are burned and will take extra damage next round.'), nl,
+        asserta(burned),
+        asserta(dragon_burn_used)
+    ; true ),
+    % Drone self-repair (once per battle, if HP < 70)
+    ( Enemy = 'Security Drone', EnemyHP < 70, \+ drone_repaired ->
+        NewEnemyHP is min(EnemyHP + 50, EnemyMaxHP),
+        asserta(drone_repaired),
+        write('The Security Drone activates its self-repair protocol and restores 50 HP!'), nl,
+        enemy_turn(Enemy, NewEnemyHP, EnemyMaxHP, EnemyAttack)
+    ; 
+        ( member('Magicsteel Armour', Inventory) ->
+            ReducedAttack is max(0, EnemyAttack - 20)
+        ;   ReducedAttack = EnemyAttack
+        ),
+        ( burned ->
+            TotalAttack is ReducedAttack + 5,
+            retract(burned),
+            write('You suffer 5 extra burn damage!'), nl
+        ;   TotalAttack = ReducedAttack
+        ),
+        write(Enemy), write(' attacks you for '), write(TotalAttack), write(' damage!'), nl,
+        NewPlayerHP is PlayerHP - TotalAttack,
+        retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
+        ( NewPlayerHP =< 0 ->
+            asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+            retractall(in_battle(_,_,_,_)),
+            retractall(dragon_burn_used),
+            retractall(drone_repaired),
+            write('You have been defeated by '), write(Enemy), write('!'), nl,
+            write('But you miraculously escape from death and flee the battle!'), nl,
+            write('You barely survive, but the battle is over as if it never happened.'), nl,
+            write('You heal yourself after the battle. Your HP is restored to 100.'), nl
+        ;
+            asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
+            retractall(in_battle(_,_,_,_)),
+            asserta(in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)),
+            show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
+        )
     ).
 
 % Show a simple ASCII life bar
@@ -339,6 +411,15 @@ analyze :-
     ;   true
     ),
     analyze_npcs(Location), !.
+analyze :-
+    player(_, Location, _, _),
+    Location = 'Skyship Dock',
+    write('You examine the damaged skyship.'), nl,
+    write('To repair it, you will need:'), nl,
+    write('  - Skyship Engine'), nl,
+    write('  - Ancient Core'), nl,
+    write('  - Energy Cell'), nl,
+    write('Hint: Collect all these parts and use the command repair. at the Skyship Dock to escape!'), nl, !.
 
 analyze_npcs(Location) :-
     findall(NPC, npc_at(NPC, Location), NPCs),
@@ -390,7 +471,7 @@ negotiate :-
         asserta(skypirate_help),
         write('The Sky Pirate is going to help you now in the battle!'), nl
     ; write('The Sky Pirate says: "You should look for some valuable goods. I heard there\'s something interesting in the broken tower."'), nl,
-      write('Maybe you should analyze the Ruined Tower for hidden secrets.'), nl
+      write('Hint: Use analyze. in the ruined tower.'), nl
     ).
 negotiate :-
     write('There is no one here to negotiate with.'), nl.
@@ -430,11 +511,6 @@ quickshot :-
     write('The Sky Pirate fires a quick shot! You lose 20 health.'), nl,
     check_health.
 
-navigate :-
-    player(_, Location, _, _),
-    npc_at('Lost Sky Pirate', Location),
-    write('The Sky Pirate shows you a hidden path through the ruins.'), nl.
-
 % Movement commands
 n :- move(north).
 s :- move(south).
@@ -446,12 +522,11 @@ map :-
     write('--- MAP OF THE MACHINES OF THE SKY ---'), nl,
     show_location_masked('Crash Site'),
     show_location_masked('Ruined Tower'),
-    show_location_masked('Sky Temple'),
-    show_location_masked('Skyforge'),
-    show_location_masked('Floating Docks'),
-    show_location_masked('Ancient Workshop'),
-    show_location_masked('Skyship Dock'),
     show_location_masked('Secret Chamber'),
+    show_location_masked('Sky Temple'),
+    show_location_masked('Floating Docks'),
+    show_location_masked('Merchant House'),
+    show_location_masked('Skyship Dock'),
     write('-------------------------------------'), nl.
 
 show_location_masked(Location) :-
@@ -496,13 +571,10 @@ help :-
     write('  look.          - Look around your current location'), nl,
     write('  n. s. e. w.    - Move (north, south, east, west)'), nl,
     write('  take(Object).  - Pick up an object'), nl,
-    write('  drop(Object).  - Drop an object'), nl,
     write('  inventory.     - Check your inventory'), nl,
     write('  interact(NPC). - interact an NPC'), nl,
     write('  repair.        - Attempt to fix ancient machinery'), nl,
-    write('  trade.         - Trade with the Mysterious Merchant'), nl,
     write('  attack.        - Attack the Security Drone (requires Plasma Cutter)'), nl,
-    write('  sneak.         - Try to sneak past an enemy'), nl,
     write('  analyze.       - Analyze technology or NPCs in the area'), nl,
     write('  negotiate.     - Negotiate with the Sky Pirate'), nl,
     write('  map.           - Show the locations'), nl,
@@ -518,104 +590,7 @@ start :-
     read(PlayerName),
     retractall(player(_,_,_,_)),
     asserta(player(PlayerName, 'Crash Site', 100, [])),
-    retractall(main_quest(_)),
-    asserta(main_quest('begin')),
     retractall(visited(_)),
     asserta(visited('Crash Site')),
     nl, write('Welcome, '), write(PlayerName), write('.'), nl,
     look.
-
-% Unlocking the Skyforge
-unlock_skyforge :-
-    player(_, Location, _, Inventory),
-    Location = 'Sky Temple',
-    member('Skyforge Key', Inventory),
-    asserta(direction('Sky Temple', east, 'Skyforge')),
-    write('You unlock the path to the Skyforge!'), nl.
-
-% Crafting the Skyforge Weapon
-craft_weapon :-
-    player(_, Location, _, Inventory),
-    Location = 'Skyforge',
-    member('Rare Alloy', Inventory),
-    member('Dragon Scale', Inventory),
-    retract(player(_, Location, _, Inventory)),
-    select('Rare Alloy', Inventory, TempInventory),
-    select('Dragon Scale', TempInventory, NewInventory),
-    asserta(player(_, Location, _, ['Skyforge Blade' | NewInventory])),
-    write('The Skyforge Keeper crafts the Skyforge Blade for you!'), nl.
-
-% --- STORY PROGRESSION LOGIC ---
-
-main_quest('begin'). % Initial state
-
-progress_quest('begin') :-
-    player(_, 'Ruined Tower', _, Inventory),
-    member('Broken Gear', Inventory),
-    member('Ancient Core', Inventory),
-    retract(main_quest('begin')),
-    asserta(main_quest('machine_awakened')),
-    write('As you combine the Broken Gear and Ancient Core, the ancient machine awakens!'), nl,
-    write('A hidden passage opens to the north...'), nl,
-    asserta(direction('Ruined Tower', north, 'Secret Chamber')).
-
-progress_quest('machine_awakened') :-
-    player(_, 'Floating Docks', _, Inventory),
-    member('Rare Alloy', Inventory),
-    member('Dragon Scale', Inventory),
-    retract(main_quest('machine_awakened')),
-    asserta(main_quest('forge_ready')),
-    write('You have both the Rare Alloy and Dragon Scale!'), nl,
-    write('Seek the Skyforge and the Keeper to craft a legendary weapon.'), nl.
-
-progress_quest('forge_ready') :-
-    player(_, 'Skyforge', _, Inventory),
-    member('Rare Alloy', Inventory),
-    member('Dragon Scale', Inventory),
-    retract(main_quest('forge_ready')),
-    asserta(main_quest('blade_forged')),
-    craft_weapon.
-
-progress_quest('blade_forged') :-
-    player(_, 'Skyship Dock', _, Inventory),
-    member('Skyforge Blade', Inventory),
-    member('Skyship Engine', Inventory),
-    member('Ancient Core', Inventory),
-    member('Energy Cell', Inventory),
-    retract(main_quest('blade_forged')),
-    asserta(main_quest('ready_to_escape')),
-    write('You have everything needed to repair the skyship and escape!'), nl.
-
-progress_quest('ready_to_escape') :-
-    player(_, 'Skyship Dock', _, _),
-    object_at('Repaired Skyship', 'Skyship Dock'),
-    write('You board the repaired skyship. The machines of the island stir as you prepare to leave.'), nl,
-    write('Congratulations! You have escaped the island and completed your adventure!'), nl,
-    asserta(main_quest('completed')).
-
-% Call this after key actions to check for quest progress
-check_story_progress :-
-    main_quest(State),
-    progress_quest(State), !.
-check_story_progress.
-
-% Health and game over logic
-check_health :-
-    player(_, _, Health, _),
-    Health =< 0,
-    write('You collapse as your wounds overwhelm you. The sky grows dark...'), nl,
-    write('GAME OVER.'), nl,
-    asserta(game_over), !.
-check_health.
-
-% Quest status command
-quest :-
-    main_quest(State),
-    write('Current main quest stage: '), write(State), nl.
-
-% Optionally, add a win command for testing
-win :- 
-    main_quest('ready_to_escape'),
-    write('You have completed the game! Congratulations!'), nl,
-    retractall(game_over),
-    asserta(game_over).
