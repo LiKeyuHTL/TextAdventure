@@ -295,9 +295,9 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
     player_attack(Inventory, Damage),
     ( skypirate_help ->
-        TotalDamage is Damage + 10,
+        TotalDamage is Damage + 20,
         write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl,
-        write('The Sky Pirate helps and deals 10 extra damage!'), nl
+        write('The Sky Pirate helps and deals 20 extra damage!'), nl
     ;
         TotalDamage = Damage,
         write('You attack '), write(Enemy), write(' for '), write(Damage), write(' damage!'), nl
@@ -335,13 +335,11 @@ player_attack(_, 30).
 % Enemy turn, then show updated life bars and wait for next attack
 enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, PlayerLoc, PlayerHP, Inventory),
-    % Dragon burn skill (once per battle)
     ( Enemy = 'Enraged Dragon', \+ dragon_burn_used ->
         write('The Enraged Dragon breathes fire! You are burned and will take extra damage next round.'), nl,
         asserta(burned),
         asserta(dragon_burn_used)
     ; true ),
-    % Drone self-repair (once per battle, if HP < 70)
     ( Enemy = 'Security Drone', EnemyHP < 70, \+ drone_repaired ->
         NewEnemyHP is min(EnemyHP + 50, EnemyMaxHP),
         asserta(drone_repaired),
@@ -362,19 +360,40 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
         NewPlayerHP is PlayerHP - TotalAttack,
         retract(player(PlayerName, PlayerLoc, PlayerHP, Inventory)),
         ( NewPlayerHP =< 0 ->
-            asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+            asserta(player(PlayerName, PlayerLoc, 1, Inventory)),
             retractall(in_battle(_,_,_,_)),
             retractall(dragon_burn_used),
             retractall(drone_repaired),
             write('You have been defeated by '), write(Enemy), write('!'), nl,
             write('But you miraculously escape from death and flee the battle!'), nl,
-            write('You barely survive, but the battle is over as if it never happened.'), nl,
-            write('You heal yourself after the battle. Your HP is restored to 100.'), nl
+            write('You barely survive, but the battle is over as if it never happened.'), nl
         ;
             asserta(player(PlayerName, PlayerLoc, NewPlayerHP, Inventory)),
             retractall(in_battle(_,_,_,_)),
             asserta(in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)),
-            show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
+            ( skypirate_help ->
+                write('The Sky Pirate uses his skill and shoots the enemy for 10 extra damage after the attack!'), nl,
+                NewEnemyHP2 is EnemyHP - 10,
+                ( NewEnemyHP2 =< 0 ->
+                    write('You defeated '), write(Enemy), write('!'), nl,
+                    ( Enemy = 'Enraged Dragon' ->
+                        asserta(dragon_help),
+                        write('The dragon bows its head: "You have proven your strength. I will help you reach your destinations quicker."'), nl,
+                        write('Hint: You can now use fly(\'Location\'). to travel instantly to any main location!'), nl
+                    ; true ),
+                    retract(npc_at(Enemy, PlayerLoc)),
+                    retractall(in_battle(_,_,_,_)),
+                    retract(player(PlayerName, PlayerLoc, 100, Inventory)),
+                    asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+                    write('You heal yourself after the battle. Your HP is restored to 100.'), nl
+                ; 
+                    retractall(in_battle(_,_,_,_)),
+                    asserta(in_battle(Enemy, NewEnemyHP2, EnemyMaxHP, EnemyAttack)),
+                    show_battle_status(Enemy, NewEnemyHP2, EnemyMaxHP, EnemyAttack)
+                )
+            ; 
+                show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack)
+            )
         )
     ).
 
