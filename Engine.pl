@@ -389,7 +389,7 @@ show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
 player_attack(Inventory, 65) :- member('Dragon Cutter++', Inventory), !.
 player_attack(Inventory, 60) :- member('Plasma Cutter+', Inventory), !.
 player_attack(Inventory, 40) :- member('Plasma Cutter', Inventory), !.
-player_attack(_, 10).
+player_attack(_, 30).
 
 % Enemy turn, then show updated life bars and wait for next attack
 enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
