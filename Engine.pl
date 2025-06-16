@@ -607,6 +607,7 @@ help :-
     write('  analyze.       - Analyze technology or NPCs in the area'), nl,
     write('  negotiate.     - Negotiate with the Sky Pirate'), nl,
     write('  map.           - Show the locations'), nl,
+    write('  status.        - Show your hp and attack damage'), nl,
     write('  help.          - Show this list of commands'), nl.
 
 % Start the game
