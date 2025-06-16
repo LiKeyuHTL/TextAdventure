@@ -43,6 +43,8 @@ Your airship spirals out of control and crashes onto an unknown floating island 
 **Tips**
 - Use `analyze.` often for hints.
 - Some NPCs require specific items to help you.
+- You can interact with the Mysterious Merchant twice to get extra infomation
 - Upgrading your weapon makes battles easier.
-- always enter NPC name or Object name in single quotes when when you take or interact with them.
+- always enter NPC name or Object name in single quotes when you take or interact them (e.g., interact(`'NPC'`), take(`'Item'`)).
+- you can just use take. to pick up everything at the location.
 - `help.` — Show all commands you need.
