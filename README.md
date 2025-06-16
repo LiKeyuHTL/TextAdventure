@@ -44,5 +44,5 @@ Your airship spirals out of control and crashes onto an unknown floating island 
 - Use `analyze.` often for hints.
 - Some NPCs require specific items to help you.
 - Upgrading your weapon makes battles easier.
-- always enter NPC name or Object name in single quotes.
+- always enter NPC name or Object name in single quotes when when you take or interact with them.
 - `help.` — Show all commands you need.

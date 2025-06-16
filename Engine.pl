@@ -456,7 +456,6 @@ analyze :-
         write('You discover a hidden passage to the east!'), nl
     ;   true
     ),
-    write('The Ancient Console looks broken. Maybe you could use a Broken Gear and an Ancient Core to upgrade your Plasma Cutter.'), nl,
     analyze_npcs(Location), !.
 
 analyze :-
