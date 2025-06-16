@@ -10,6 +10,7 @@
 :- dynamic(dragon_burn_used/0).
 :- dynamic(drone_repaired/0).
 :- dynamic(skypirate_help/0).
+:- dynamic(heal_uses/1).
 
 % Show welcome and help at load
 :- initialization(main).
@@ -271,6 +272,7 @@ repair :-
 % Start a battle if an enemy is present and not already in battle
 attack :-
     in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack), !,
+    ( \+ heal_uses(_) -> asserta(heal_uses(3)) ; true ),
     continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack).
 attack :-
     player(_, Location, _, _),
@@ -279,8 +281,10 @@ attack :-
     retractall(in_battle(_,_,_,_)),
     retractall(dragon_burn_used),
     retractall(burn_turns(_)),
+    retractall(heal_uses(_)),
     DragonStartHP is EnemyMaxHP - 20,
     asserta(in_battle('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack)),
+    asserta(heal_uses(3)),
     write('You catch the Enraged Dragon off guard! It starts the battle with 20 less HP.'), nl,
     show_battle_status('Enraged Dragon', DragonStartHP, EnemyMaxHP, EnemyAttack).
 attack :-
@@ -289,11 +293,38 @@ attack :-
     enemy_stats(Enemy, EnemyMaxHP, EnemyAttack),
     retractall(in_battle(_,_,_,_)),
     (Enemy = 'Enraged Dragon' -> retractall(dragon_burn_used), retractall(burn_turns(_)) ; true),
+    retractall(heal_uses(_)),
     asserta(in_battle(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack)),
+    asserta(heal_uses(3)),
     write('A wild '), write(Enemy), write(' appears!'), nl,
     show_battle_status(Enemy, EnemyMaxHP, EnemyMaxHP, EnemyAttack).
 attack :-
     write('There is nothing to attack here.'), nl.
+
+% Heal command (only available during battles)
+heal :-
+    in_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack),
+    heal_uses(Uses),
+    Uses > 0,
+    player(Name, Location, HP, Inventory),
+    HealAmount is EnemyAttack + 25,
+    NewHP is min(100, HP + HealAmount),
+    NewUses is Uses - 1,
+    retract(player(Name, Location, HP, Inventory)),
+    asserta(player(Name, Location, NewHP, Inventory)),
+    retract(heal_uses(Uses)),
+    asserta(heal_uses(NewUses)),
+    write('You heal yourself for '), write(HealAmount), write(' HP. ('), write(NewUses), write(' heals left this battle)'), nl,
+    write('Your HP is now '), write(NewHP), write('.'), nl,
+    enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack), !.
+
+heal :-
+    in_battle(_,_,_,_),
+    heal_uses(0),
+    write('You have no heals left for this battle.'), nl, !.
+
+heal :-
+    write('You can only heal during a battle.'), nl.
 
 % Continue the battle phase
 continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
@@ -335,6 +366,7 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
             retractall(in_battle(_,_,_,_)),
             retract(player(PlayerName, PlayerLoc, _, Inventory)),
             asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
+            retractall(heal_uses(_)),
             write('You heal yourself after the battle. Your HP is restored to 100.'), nl
         ; enemy_turn(Enemy, FinalEnemyHP, EnemyMaxHP, EnemyAttack)
         )
@@ -342,12 +374,15 @@ continue_battle(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     ).
 
 % Show battle status and wait for player to enter attack command
-show_battle_status(Enemy, EnemyHP, EnemyMaxHP, _) :-
+show_battle_status(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
     player(PlayerName, _, PlayerHP, _),
+    ( heal_uses(Uses) -> true ; Uses = 3 ),
     write('--- BATTLE ---'), nl,
     write(PlayerName), write(' HP: '), show_life_bar(PlayerHP, 100), write(' ('), write(PlayerHP), write('/100)'), nl,
     write(Enemy), write(' HP: '), show_life_bar(EnemyHP, EnemyMaxHP), write(' ('), write(EnemyHP), write('/'), write(EnemyMaxHP), write(')'), nl,
+    write('Heals left this battle: '), write(Uses), nl,
     write('Type attack. to attack!'), nl.
+    write('Type heal. to heal yourself.'), nl,
 
 % Continue the battle phase after player enters attack.
 % Player attack damage (stronger if Plasma Cutter+)
@@ -394,6 +429,7 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
             retractall(dragon_burn_used),
             retractall(drone_repaired),
             retractall(burn_turns(_)),
+            retractall(heal_uses(_)),
             write('You have been defeated by '), write(Enemy), write('!'), nl,
             write('But you miraculously escape from death and flee the battle!'), nl,
             write('You barely survive, but the battle is over as if it never happened.'), nl,
@@ -420,6 +456,7 @@ enemy_turn(Enemy, EnemyHP, EnemyMaxHP, EnemyAttack) :-
                     retract(player(PlayerName, PlayerLoc, 100, Inventory)),
                     asserta(player(PlayerName, PlayerLoc, 100, Inventory)),
                     retractall(burn_turns(_)),
+                    retractall(heal_uses(_)),
                     write('You heal yourself after the battle. Your HP is restored to 100.'), nl
                 ; 
                     retractall(in_battle(_,_,_,_)),
